@@ -32,9 +32,10 @@ export default function AdminApplications() {
   const [deletedAppIds, setDeletedAppIds] = useState(() => {
     try {
       const saved = localStorage.getItem('icc_deleted_applications');
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.from(new Set([...parsed, 'Jhericho Rapiz', 'NIO']));
     } catch (err) {
-      return [];
+      return ['Jhericho Rapiz', 'NIO'];
     }
   });
 
@@ -53,7 +54,12 @@ export default function AdminApplications() {
 
   const baseList = dbApps && dbApps.length > 0 ? dbApps : fallbackApps;
   const rawList = [...localApps, ...baseList.filter((b) => !localApps.some((l) => l.id === b.id))];
-  const appList = rawList.filter((a) => !deletedAppIds.includes(a.id));
+  const appList = rawList.filter((a) =>
+    !deletedAppIds.includes(String(a.id)) &&
+    !deletedAppIds.includes(a.name) &&
+    !deletedAppIds.includes(a.in_game_name) &&
+    a.name?.toLowerCase() !== 'jhericho rapiz'
+  );
 
   const filtered = appList.filter((a) => {
     const matchesStatus =
