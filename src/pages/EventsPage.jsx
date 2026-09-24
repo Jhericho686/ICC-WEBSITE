@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Users, Award, ShieldAlert, CheckCircle2, Image as ImageIcon, Video, ExternalLink } from 'lucide-react';
 import { useSupabaseQuery } from '../lib/hooks';
 import { safeArrayParse } from '../lib/storage';
+import SectionHeader from '../components/SectionHeader';
 
 export const fallbackEvents = [
   {
