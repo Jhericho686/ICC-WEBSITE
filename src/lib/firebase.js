@@ -26,6 +26,7 @@ import {
   getStorage,
   ref as storageRef,
   uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
 } from 'firebase/storage';
 
@@ -40,13 +41,13 @@ const getEnv = (key, fallback) => {
 };
 
 export const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY', "AIzaSyCWseZfNrlSbtjZQA1Uv-RyKYrn_SEInyY"),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN', "idlecc.firebaseapp.com"),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID', "idlecc"),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET', "idlecc.firebasestorage.app"),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', "663265188018"),
-  appId: getEnv('VITE_FIREBASE_APP_ID', "1:663265188018:web:1a10885e0252262e3c91ab"),
-  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID', "G-MRMMRN0N1M"),
+  apiKey: getEnv('VITE_FIREBASE_API_KEY', "AIzaSyAK5xH5AGS01qFLQoeCPaZFUf3MeiAe5fs"),
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN', "iccwebsite-e3a90.firebaseapp.com"),
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID', "iccwebsite-e3a90"),
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET', "iccwebsite-e3a90.firebasestorage.app"),
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', "940499624682"),
+  appId: getEnv('VITE_FIREBASE_APP_ID', "1:940499624682:web:a8048bd10520bf57336d93"),
+  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID', "G-SKJFRNCX6Q"),
 };
 
 /* ─── Initialize Services ─── */
@@ -237,59 +238,89 @@ export async function uploadFile(bucket, path, file) {
   return { path, publicUrl: downloadUrl };
 }
 
-export async function uploadMediaFile(bucket, file) {
+export async function uploadMediaFile(bucket, file, onProgress) {
   if (!file) return null;
   const sanitizedName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, '_') : 'upload';
   const path = `${Date.now()}_${sanitizedName}`;
 
-  // Try Firebase Storage first
+  // Try Firebase Storage with resumable progress
   try {
-    const res = await uploadFile(bucket, path, file);
-    if (res && res.publicUrl) {
-      return res.publicUrl;
-    }
+    const fileRef = storageRef(storage, `${bucket}/${path}`);
+    const downloadUrl = await new Promise((resolve, reject) => {
+      const uploadTask = uploadBytesResumable(fileRef, file);
+
+      // 60-second connection timeout guard
+      const timer = setTimeout(() => {
+        try { uploadTask.cancel(); } catch (e) {}
+        reject(new Error('Cloud upload timed out. Ensure Firebase Storage is initialized in Firebase console.'));
+      }, 60000);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          if (snapshot.totalBytes > 0) {
+            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            if (onProgress) onProgress(pct);
+          }
+        },
+        (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+        async () => {
+          clearTimeout(timer);
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          } catch (e) {
+            reject(e);
+          }
+        }
+      );
+    });
+
+    if (downloadUrl) return downloadUrl;
   } catch (err) {
     console.warn(`Firebase Storage upload notice for ${bucket}/${path}:`, err.message);
-  }
 
-  // If file is an image, compress via canvas to <= 900px so it is compact (<80KB) and never breaks Firestore
-  if (file.type && file.type.startsWith('image/')) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 900;
-          let w = img.width;
-          let h = img.height;
-          if (w > h && w > maxDim) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else if (h > maxDim) {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
-          resolve(compressed);
+    // If file is an image, compress via canvas to <= 900px so it is compact (<80KB) and never breaks Firestore
+    if (file.type && file.type.startsWith('image/')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 900;
+            let w = img.width;
+            let h = img.height;
+            if (w > h && w > maxDim) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+            resolve(compressed);
+          };
+          img.onerror = () => resolve(e.target.result);
+          img.src = e.target.result;
         };
-        img.onerror = () => resolve(e.target.result);
-        img.src = e.target.result;
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-  }
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+    }
 
-  // For video or other blob media
-  if (typeof window !== 'undefined' && window.URL && file instanceof Blob) {
-    return URL.createObjectURL(file);
+    // For video files, DO NOT return a temporary blob URL (blob:http...) because it only lives in memory and vanishes on page reload
+    throw new Error(
+      'Cloud storage upload failed: Firebase Cloud Storage is not yet initialized in your console. Please enable it at https://console.firebase.google.com/project/iccwebsite-e3a90/storage, or paste a YouTube / Google Drive / direct video URL.'
+    );
   }
-  return '';
 }
 
 export async function getPublicUrl(bucket, path) {

@@ -26,12 +26,20 @@ const fallbackVideos = [
   },
 ];
 
+function extractYoutubeId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
 export default function AdminMontages() {
   const [search, setSearch] = useState('');
   const [editingVideo, setEditingVideo] = useState(null);
   const [deletingVideo, setDeletingVideo] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState('');
   const { addToast } = useToast();
 
   const { data: dbVideos, refetch } = useSupabaseQuery('videos', {
@@ -67,26 +75,49 @@ export default function AdminMontages() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const sizeMb = Math.round(file.size / (1024 * 1024));
     setUploading(true);
-    addToast('🎬 Uploading video to Cloud Storage...', 'info');
+    setUploadProgress(0);
+    setUploadError('');
+    addToast(`🎬 Uploading ${file.name} (${sizeMb}MB)...`, 'info');
 
     try {
-      const url = await uploadMediaFile('videos', file);
+      const url = await uploadMediaFile('videos', file, (pct) => {
+        setUploadProgress(pct);
+      });
       if (url) {
         setEditingVideo((prev) => ({
           ...prev,
           youtube_url: url,
         }));
-        addToast('🎬 Video reel uploaded & ready!', 'success');
+        addToast('🎬 Video uploaded to cloud storage successfully!', 'success');
       } else {
-        throw new Error('Upload completed without URL');
+        throw new Error('Upload completed without valid URL');
       }
     } catch (err) {
       console.warn('Video upload error:', err);
-      addToast('Error uploading video: ' + err.message, 'error');
+      const isStorageUnset = err.message.includes('not yet initialized') || err.message.includes('not set up') || err.message.includes('Storage');
+      setUploadError(
+        isStorageUnset
+          ? 'Firebase Cloud Storage is not activated yet in your Google Firebase Console. You can activate it at console.firebase.google.com, or paste a YouTube / video link below for instant playback.'
+          : err.message
+      );
+      addToast('Upload failed: ' + err.message, 'error');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
+  };
+
+  const handleYoutubeUrlChange = (val) => {
+    const ytId = extractYoutubeId(val);
+    setEditingVideo((prev) => {
+      const next = { ...prev, youtube_url: val };
+      if (ytId && (!prev.thumbnail_url || prev.thumbnail_url.includes('unsplash'))) {
+        next.thumbnail_url = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
+      }
+      return next;
+    });
   };
 
   const handleThumbnailFileUpload = async (e) => {
@@ -343,44 +374,85 @@ export default function AdminMontages() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                    Video File Upload (Mobile & PC) *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/80">
+                      Video Source *
+                    </label>
+                    <span className="text-[11px] text-amber-400 font-bold">
+                      YouTube Link Recommended
+                    </span>
+                  </div>
 
-                  {/* Native Video File Upload */}
-                  <div className="mb-2">
-                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-amber-500/10 border-2 border-dashed border-amber-500/50 hover:border-amber-400 text-white text-xs font-bold cursor-pointer transition-all">
+                  {/* YouTube or Web Video Link Input */}
+                  <div className="space-y-2 mb-3">
+                    <input
+                      type="text"
+                      required
+                      value={editingVideo.youtube_url}
+                      onChange={(e) => handleYoutubeUrlChange(e.target.value)}
+                      placeholder="Paste YouTube Link (e.g. https://youtu.be/... or https://youtube.com/shorts/...)"
+                      className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-amber-500/40 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400 font-mono placeholder:text-white/30"
+                    />
+                    <p className="text-[11px] text-white/50 leading-relaxed">
+                      💡 <strong>Pro-Tip:</strong> Pasting a YouTube link streams smoothly in 1080p/4K on mobile without buffering, takes zero upload time, and never vanishes!
+                    </p>
+                  </div>
+
+                  {/* Direct Mobile & PC File Upload with live progress */}
+                  <div className="pt-2 border-t border-white/10">
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-white/60 mb-2">
+                      Or Upload Direct Video File (.MP4, .MOV, .WEBM):
+                    </span>
+
+                    <label className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl bg-black/40 border-2 border-dashed border-white/20 hover:border-amber-400/60 text-white text-xs font-bold cursor-pointer transition-all">
                       <Upload className="w-6 h-6 text-amber-400" />
                       <span className="text-amber-300 font-extrabold text-sm">
-                        {uploading ? 'Processing Video...' : 'Select Video File from Mobile / Phone / PC'}
+                        {uploading ? `Uploading Video: ${uploadProgress}%` : 'Select Video File from Phone / PC'}
                       </span>
-                      <span className="text-white/50 text-[11px] font-normal">
-                        Supports MP4, MOV, WEBM. No manual folder copying required!
+                      {uploading && (
+                        <div className="w-full max-w-xs bg-white/10 h-2 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="bg-amber-400 h-full transition-all duration-300 rounded-full"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      )}
+                      <span className="text-white/40 text-[11px] font-normal">
+                        Direct cloud file upload (Requires Firebase Cloud Storage activated)
                       </span>
                       <input
                         type="file"
                         accept="video/*"
+                        disabled={uploading}
                         className="hidden"
                         onChange={handleVideoFileUpload}
                       />
                     </label>
+
+                    {/* Storage Error / Setup Notification */}
+                    {uploadError && (
+                      <div className="mt-3 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 space-y-2">
+                        <p className="font-semibold">{uploadError}</p>
+                        <a
+                          href="https://console.firebase.google.com/project/iccwebsite-e3a90/storage"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/25 hover:bg-red-500/40 text-white font-bold text-xs no-underline border border-red-500/40 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Open Firebase Storage Console to Click "Get Started"
+                        </a>
+                      </div>
+                    )}
+
+                    {editingVideo.youtube_url && !uploadError && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-black/60 border border-emerald-500/30 text-xs font-mono text-emerald-400 flex items-center justify-between truncate">
+                        <span className="truncate">Active Source: {editingVideo.youtube_url}</span>
+                        <span className="shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ml-2">
+                          Ready
+                        </span>
+                      </div>
+                    )}
                   </div>
-
-                  {editingVideo.youtube_url && (
-                    <div className="p-3 rounded-xl bg-black/60 border border-amber-500/30 text-xs font-mono text-amber-300 truncate mb-2">
-                      Loaded Source: {editingVideo.youtube_url.slice(0, 50)}...
-                    </div>
-                  )}
-
-                  <span className="text-xs text-white/40 block mb-1">Or paste a YouTube URL / Video Link:</span>
-                  <input
-                    type="text"
-                    required
-                    value={editingVideo.youtube_url}
-                    onChange={(e) => setEditingVideo({ ...editingVideo, youtube_url: e.target.value })}
-                    placeholder="https://www.youtube.com/watch?v=... or choose file above"
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
