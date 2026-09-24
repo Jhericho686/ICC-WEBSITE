@@ -6,7 +6,7 @@ import SectionHeader from '../components/SectionHeader';
 
 import { fallbackMembers } from './admin/AdminMembers';
 
-const roles = ['All', 'Owner', 'Co-Leader', 'President', 'Vice President', 'Admin', 'Member', 'New Member'];
+const roles = ['All', 'Owner', 'Co-Owner', 'President', 'Vice President', 'Admin', 'Member', 'New Member'];
 
 export default function MembersPage() {
   const [selectedRole, setSelectedRole] = useState('All');

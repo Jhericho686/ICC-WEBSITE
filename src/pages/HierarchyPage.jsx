@@ -17,8 +17,8 @@ const roleDefinitions = [
     ]
   },
   {
-    role: 'Co-Leader',
-    title: 'Executive Co-Directors',
+    role: 'Co-Owner',
+    title: 'Executive Co-Owners',
     badgeColor: 'from-orange-500 to-amber-500 text-black',
     borderColor: 'border-orange-500/40',
     icon: Crown,

@@ -25,7 +25,7 @@ import { useToast } from '../../lib/contexts';
 
 const defaultRoles = [
   'Owner',
-  'Co-Leader',
+  'Co-Owner',
   'President',
   'Vice President',
   'Admin',
@@ -40,7 +40,7 @@ const roleHierarchy = [
   'Admin',
   'Vice President',
   'President',
-  'Co-Leader',
+  'Co-Owner',
   'Owner',
 ];
 
@@ -62,7 +62,7 @@ export const fallbackMembers = [
     name: 'PATPAT',
     real_name: 'Patpat KP',
     in_game_name: '[Co-Owner] ICC-PATPAT (2912492)',
-    role: 'Co-Leader',
+    role: 'Co-Owner',
     cpm_id: '2912492',
     car: 'ID: 2912492',
     hierarchy_order: 2,
@@ -73,7 +73,7 @@ export const fallbackMembers = [
     name: 'BLUEWORKS',
     real_name: 'Chri S Tian',
     in_game_name: '[CO-OWNER]ICC - BLUEWORKS',
-    role: 'Co-Leader',
+    role: 'Co-Owner',
     cpm_id: 'Co-Owner',
     car: 'BMW M4 Competition',
     hierarchy_order: 3,
@@ -84,7 +84,7 @@ export const fallbackMembers = [
     name: 'BERT23',
     real_name: 'Herbert Malandac',
     in_game_name: "[ C'o Owner ] BERT23",
-    role: 'Co-Leader',
+    role: 'Co-Owner',
     cpm_id: 'Co-Owner',
     car: 'Co-Owner Spec',
     hierarchy_order: 4,
@@ -535,7 +535,7 @@ export default function AdminMembers() {
             </span>
           </div>
           <p className="text-sm sm:text-base text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            Promote members to Admin or Leadership ranks, configure driver specs, and update hierarchy order.
+            Promote members to Admin or Co-Owner ranks, configure driver specs, and update hierarchy order.
           </p>
         </div>
 
@@ -566,9 +566,9 @@ export default function AdminMembers() {
         </div>
         <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
           <div>
-            <span className="text-xs text-amber-400/80 font-bold uppercase tracking-wider block">Co-Leaders & Owners</span>
+            <span className="text-xs text-amber-400/80 font-bold uppercase tracking-wider block">Co-Owners & Owners</span>
             <span className="text-2xl sm:text-3xl font-black text-amber-400 mt-1 block">
-              {memberList.filter((m) => ['Owner', 'Co-Leader'].includes(m.role)).length}
+              {memberList.filter((m) => ['Owner', 'Co-Owner'].includes(m.role)).length}
             </span>
           </div>
           <Crown className="w-8 h-8 text-amber-400/50" />
@@ -605,7 +605,7 @@ export default function AdminMembers() {
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             type="text"
-            placeholder="Search member, role (e.g. Vice President, Admin), IGN, or car..."
+            placeholder="Search member, role (e.g. Co-Owner, Admin), IGN, or car..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-12 pr-5 py-3.5 rounded-2xl bg-black/60 border border-white/15 text-sm sm:text-base text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)] transition-colors"
@@ -671,7 +671,7 @@ export default function AdminMembers() {
                     <td className="px-8 py-6">
                       <span
                         className={`inline-flex px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
-                          ['Owner', 'Co-Leader'].includes(m.role)
+                          ['Owner', 'Co-Owner'].includes(m.role)
                             ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
                             : ['President', 'Vice President'].includes(m.role)
                             ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50'
@@ -855,7 +855,7 @@ export default function AdminMembers() {
                     rows="3"
                     value={promoReason}
                     onChange={(e) => setPromoReason(e.target.value)}
-                    placeholder="e.g. Promoted to Vice President for outstanding leadership and event coordination."
+                    placeholder="e.g. Promoted to Co-Owner for outstanding leadership and event coordination."
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
                   />
                 </div>
