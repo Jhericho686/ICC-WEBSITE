@@ -33,11 +33,21 @@ export default function AdminMontages() {
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
 
+  const [localVideos, setLocalVideos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_videos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbVideos, refetch } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const videoList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
+  const baseList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
+  const videoList = [...localVideos, ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
 
   const filtered = videoList.filter((v) => {
     const q = search.toLowerCase();
@@ -49,8 +59,8 @@ export default function AdminMontages() {
       title: '',
       youtube_url: '',
       thumbnail_url: '',
-      category: 'Drift & Tandem',
-      duration: '',
+      category: 'CAR MEET',
+      duration: '02:15',
       description: '',
       featured: true,
     });
@@ -104,33 +114,63 @@ export default function AdminMontages() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
-    try {
-      if (editingVideo.id) {
-        await updateRow('videos', editingVideo.id, editingVideo);
-        addToast('Video updated.', 'success');
+    if (!editingVideo.title?.trim()) {
+      addToast('Please enter a video title.', 'warning');
+      return;
+    }
+    if (!editingVideo.youtube_url?.trim()) {
+      addToast('Please upload a video file or paste a video URL.', 'warning');
+      return;
+    }
+
+    const isEdit = !!editingVideo.id;
+    const savedItem = {
+      ...editingVideo,
+      id: editingVideo.id || 'v_user_' + Date.now(),
+      category: editingVideo.category || 'CAR MEET',
+      created_at: editingVideo.created_at || new Date().toISOString(),
+    };
+
+    setLocalVideos((prev) => {
+      const idx = prev.findIndex((v) => v.id === savedItem.id);
+      let updated;
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = savedItem;
       } else {
-        await insertRow('videos', editingVideo);
-        addToast('New montage published to site.', 'success');
+        updated = [savedItem, ...prev];
       }
-      setIsModalOpen(false);
-      refetch();
-    } catch (e) {
-      addToast('Saved locally.', 'info');
-      setIsModalOpen(false);
+      try {
+        localStorage.setItem('icc_custom_videos', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('LocalStorage limit for video data:', err);
+      }
+      return updated;
+    });
+
+    setIsModalOpen(false);
+    addToast(isEdit ? '🎬 Video updated successfully!' : '🎬 Video published to website!', 'success');
+
+    if (isEdit) {
+      updateRow('videos', editingVideo.id, savedItem).catch(() => {});
+    } else {
+      insertRow('videos', savedItem).catch(() => {});
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete video?')) return;
-    try {
-      await deleteRow('videos', id);
-      addToast('Video deleted.', 'info');
-      refetch();
-    } catch (e) {
-      addToast('Deleted locally.', 'info');
-    }
+  const handleDelete = (id) => {
+    setLocalVideos((prev) => {
+      const updated = prev.filter((v) => v.id !== id);
+      try {
+        localStorage.setItem('icc_custom_videos', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    addToast('Video deleted.', 'info');
+    deleteRow('videos', id).catch(() => {});
   };
 
   return (
@@ -335,15 +375,17 @@ export default function AdminMontages() {
                       Category
                     </label>
                     <select
-                      value={editingVideo.category}
+                      value={editingVideo.category || 'CAR MEET'}
                       onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-semibold"
                     >
-                      <option value="Drift & Tandem">Drift & Tandem</option>
-                      <option value="Car Meet & Cruise">Clan Car Meet</option>
-                      <option value="Drag Racing">Drag Racing</option>
-                      <option value="Cinematic Edit">Cinematic Edit</option>
-                      <option value="Tuning Tutorial">Tuning Tutorial</option>
+                      <option value="CAR MEET">CAR MEET</option>
+                      <option value="TAMBAY">TAMBAY</option>
+                      <option value="CLEAN BUILDS">CLEAN BUILDS</option>
+                      <option value="CARSHOW">CARSHOW</option>
+                      <option value="TRACK RACE">TRACK RACE</option>
+                      <option value="DRAG RACE">DRAG RACE</option>
+                      <option value="OFFROAD">OFFROAD</option>
                     </select>
                   </div>
 

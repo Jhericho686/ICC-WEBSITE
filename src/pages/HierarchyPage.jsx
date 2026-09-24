@@ -121,7 +121,7 @@ export default function HierarchyPage() {
           {roleDefinitions.map((tier, idx) => {
             const Icon = tier.icon;
             // Filter real members if available, or use defaults
-            const currentMembers = dbMembers !== null && dbMembers !== undefined
+            const currentMembers = dbMembers && dbMembers.length > 0
               ? dbMembers.filter(m => m.role?.toLowerCase() === tier.role.toLowerCase())
               : tier.members;
 

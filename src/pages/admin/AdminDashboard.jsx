@@ -19,11 +19,11 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     applications: 3,
     pendingApps: 2,
-    collaborations: 1,
+    collaborations: 4,
     members: 22,
     videos: 2,
-    gallery: 14,
-    events: 5,
+    gallery: 8,
+    events: 3,
   });
 
   const [recentApplications, setRecentApplications] = useState([

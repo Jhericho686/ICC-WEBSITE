@@ -41,11 +41,21 @@ function extractYoutubeId(url) {
 export default function MontagesPage() {
   const [activeVideo, setActiveVideo] = useState(null);
 
+  const [localVideos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_videos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbVideos } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const videoList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
+  const baseList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
+  const videoList = [...localVideos, ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
 
   return (
     <div className="pt-28 pb-24 min-h-screen">

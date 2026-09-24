@@ -171,11 +171,8 @@ export default function CollaboratePage() {
                     {collab.highlight}
                   </p>
                   <div className="mt-auto pt-3 border-t border-[var(--color-border)] flex items-center justify-between text-[11px] text-[var(--color-muted)]">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> {collab.date}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {collab.participants}
+                    <span className="flex items-center gap-1 font-semibold text-white/80">
+                      <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)]" /> {collab.date}
                     </span>
                   </div>
                 </div>

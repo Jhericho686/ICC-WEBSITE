@@ -330,14 +330,17 @@ export default function AdminGallery() {
                       Category
                     </label>
                     <select
-                      value={editingPhoto.category}
+                      value={editingPhoto.category || 'CAR MEET'}
                       onChange={(e) => setEditingPhoto({ ...editingPhoto, category: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-semibold"
                     >
-                      <option value="Builds">Custom Builds</option>
-                      <option value="Meets">Clan Meets</option>
-                      <option value="Drift">Drift Battle</option>
-                      <option value="Racing">Speed & Drag</option>
+                      <option value="CAR MEET">CAR MEET</option>
+                      <option value="TAMBAY">TAMBAY</option>
+                      <option value="CLEAN BUILDS">CLEAN BUILDS</option>
+                      <option value="CARSHOW">CARSHOW</option>
+                      <option value="TRACK RACE">TRACK RACE</option>
+                      <option value="DRAG RACE">DRAG RACE</option>
+                      <option value="OFFROAD">OFFROAD</option>
                     </select>
                   </div>
 

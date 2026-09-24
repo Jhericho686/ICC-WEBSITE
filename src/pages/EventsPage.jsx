@@ -4,7 +4,50 @@ import { Calendar, Clock, MapPin, Users, Award, ShieldAlert, CheckCircle2, Image
 import { useSupabaseQuery } from '../lib/hooks';
 import SectionHeader from '../components/SectionHeader';
 
-const fallbackEvents = [];
+export const fallbackEvents = [
+  {
+    id: 'e1',
+    title: 'ICC GRAND STANCE CAR MEET & SHOWCASE',
+    event_date: new Date(Date.now() + 86400000 * 3).toISOString(),
+    location: 'City 1 - Marina Docks (Server ICC-MAIN)',
+    category: 'Car Meet',
+    host: 'ICC Council',
+    requirements: 'Clean build, static/air stance, no rice mods',
+    description: 'Our weekly signature clan gathering. Clean builds only, livery contest, and night cruise around the loop.',
+    status: 'upcoming',
+    image_url: '/gallery/icc-meet-grand-gathering.png',
+    video_url: '/videos/icc-montage-1.mp4',
+    recap_notes: 'Grand turnout with over 35+ clan members and partner pilots.',
+  },
+  {
+    id: 'e2',
+    title: 'MIDNIGHT TOUGE DRIFT BATTLE // CUP 4',
+    event_date: new Date(Date.now() + 86400000 * 7).toISOString(),
+    location: 'Mountain Pass Section 3 (Tandem Server)',
+    category: 'Tournament',
+    host: 'MELLY & PATPAT',
+    requirements: 'RWD Drift Spec, Street Tires, Helmet',
+    description: 'Bracket drift battle tournament with judge scoring on angle, clipping points, and proximity.',
+    status: 'upcoming',
+    image_url: '/gallery/icc-meet-touge-pass.png',
+    video_url: '',
+    recap_notes: 'High speed mountain tandem tandem battles.',
+  },
+  {
+    id: 'e3',
+    title: 'HIGH SPEED AIRPORT STRIP DRAG WARS',
+    event_date: new Date(Date.now() - 86400000 * 5).toISOString(),
+    location: 'Desert Airport Runway (Speed Server)',
+    category: 'Drag Race',
+    host: 'BLUEWORKS & AJ ADU',
+    requirements: 'Open Class / Tuned Engines',
+    description: 'AWD vs RWD classes. 400m standing quarter-mile shootout. Exclusive winner roles awarded in Discord.',
+    status: 'past',
+    image_url: '/gallery/icc-meet-bridge-lineup.png',
+    video_url: '/videos/icc-montage-2.mp4',
+    recap_notes: 'Record quarter-mile passes and clean championship finish.',
+  },
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -33,7 +76,7 @@ export default function EventsPage() {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },
   });
 
-  const eventList = dbEvents !== null && dbEvents !== undefined ? dbEvents : fallbackEvents;
+  const eventList = dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents;
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();

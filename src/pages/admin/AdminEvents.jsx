@@ -4,6 +4,7 @@ import { Plus, Search, Edit2, Trash2, Calendar, MapPin, Clock, Users, Image as I
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
+import { fallbackEvents } from '../EventsPage';
 
 export default function AdminEvents() {
   const [search, setSearch] = useState('');
@@ -15,7 +16,7 @@ export default function AdminEvents() {
     order: { column: 'event_date', ascending: false },
   });
 
-  const eventList = dbEvents || [];
+  const eventList = dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents;
 
   const filtered = eventList.filter((e) => {
     const q = search.toLowerCase();
@@ -340,14 +341,17 @@ export default function AdminEvents() {
                       Category
                     </label>
                     <select
-                      value={editingEvent.category}
+                      value={editingEvent.category || 'CAR MEET'}
                       onChange={(e) => setEditingEvent({ ...editingEvent, category: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-semibold"
                     >
-                      <option value="Car Meet">Clan Car Meet</option>
-                      <option value="Tournament">Drift Tournament</option>
-                      <option value="Drag Race">Drag Strip Shootout</option>
-                      <option value="Convoy">Highway Cruise</option>
+                      <option value="CAR MEET">CAR MEET</option>
+                      <option value="TAMBAY">TAMBAY</option>
+                      <option value="CLEAN BUILDS">CLEAN BUILDS</option>
+                      <option value="CARSHOW">CARSHOW</option>
+                      <option value="TRACK RACE">TRACK RACE</option>
+                      <option value="DRAG RACE">DRAG RACE</option>
+                      <option value="OFFROAD">OFFROAD</option>
                     </select>
                   </div>
                 </div>

@@ -16,7 +16,7 @@ export default function MembersPage() {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = dbMembers !== null && dbMembers !== undefined ? dbMembers : fallbackMembers;
+  const memberList = dbMembers && dbMembers.length > 0 ? dbMembers : fallbackMembers;
 
   const filteredMembers = useMemo(() => {
     return memberList.filter((m) => {
@@ -141,13 +141,9 @@ export default function MembersPage() {
               </div>
 
               {/* Footer */}
-              <div className="mt-6 pt-4 border-t border-[var(--color-border)] flex items-center justify-between text-[11px] text-[var(--color-muted)]">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-white/40" />
-                  Since {member.joined_date ? new Date(member.joined_date).getFullYear() : '2023'}
-                </span>
+              <div className="mt-6 pt-4 border-t border-[var(--color-border)] flex items-center justify-end text-[11px] text-[var(--color-muted)]">
                 <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Active
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Active Driver
                 </span>
               </div>
             </motion.div>

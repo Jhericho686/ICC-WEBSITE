@@ -36,13 +36,23 @@ export default function FeaturedMontagesSection() {
   const [ref, inView] = useInView();
   const [activeVideo, setActiveVideo] = useState(null);
 
+  const [localVideos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_videos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: montages } = useSupabaseQuery('videos', {
     filter: { featured: true },
     order: { column: 'created_at', ascending: false },
     limit: 2,
   });
 
-  const displayMontages = montages && montages.length > 0 ? montages : fallbackMontages;
+  const baseList = montages && montages.length > 0 ? montages : fallbackMontages;
+  const displayMontages = [...localVideos.filter((v) => v.featured), ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
 
   return (
     <section id="montages" className="py-24 relative overflow-hidden">

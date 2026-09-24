@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Medal,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow, logActivity } from '../../lib/supabase';
@@ -49,7 +51,7 @@ export const fallbackMembers = [
   {
     id: 'm_1',
     name: 'MELLY',
-    real_name: 'Maky Tandang',
+    real_name: 'Mark Joseph Tandang',
     in_game_name: 'Owner- ICC MELLY',
     role: 'Owner',
     cpm_id: 'Founder',
@@ -60,7 +62,7 @@ export const fallbackMembers = [
   {
     id: 'm_2',
     name: 'PATPAT',
-    real_name: 'Patpat KP',
+    real_name: 'Patrick Carreon',
     in_game_name: '[Co-Owner] ICC-PATPAT (2912492)',
     role: 'Co-Owner',
     cpm_id: '2912492',
@@ -71,7 +73,7 @@ export const fallbackMembers = [
   {
     id: 'm_3',
     name: 'BLUEWORKS',
-    real_name: 'Chri S Tian',
+    real_name: 'Christian Torrecampo Tario',
     in_game_name: '[CO-OWNER]ICC - BLUEWORKS',
     role: 'Co-Owner',
     cpm_id: 'Co-Owner',
@@ -79,27 +81,27 @@ export const fallbackMembers = [
     hierarchy_order: 3,
     featured: true,
   },
+
+  // Presidents
   {
     id: 'm_4',
-    name: 'BERT23',
-    real_name: 'Herbert Malandac',
-    in_game_name: "[ C'o Owner ] BERT23",
-    role: 'Co-Owner',
-    cpm_id: 'Co-Owner',
-    car: 'Co-Owner Spec',
-    hierarchy_order: 4,
-    featured: true,
-  },
-
-  // Presidents & Vice Presidents
-  {
-    id: 'm_5',
     name: 'AJ ADU',
     real_name: 'Jayson Ramos',
     in_game_name: '[ President]ICC AJ ADU',
     role: 'President',
     cpm_id: 'President',
     car: 'Subaru WRX STI',
+    hierarchy_order: 4,
+    featured: true,
+  },
+  {
+    id: 'm_5',
+    name: 'JEHEYSI',
+    real_name: 'JC Marasigan',
+    in_game_name: 'PRESIDENT ICC jeheysi (YX606679)',
+    role: 'President',
+    cpm_id: 'YX606679',
+    car: 'Mazda RX-7 FD3S (YX606679)',
     hierarchy_order: 5,
     featured: true,
   },
@@ -114,103 +116,105 @@ export const fallbackMembers = [
     hierarchy_order: 6,
     featured: true,
   },
+
+  // Vice Presidents
   {
     id: 'm_7',
-    name: 'JAS / jeheysi',
-    real_name: 'Jc Marasigan',
-    in_game_name: 'PRESIDENT ICC jeheysi (YX606679)',
-    role: 'President',
-    cpm_id: 'YX606679',
-    car: 'Mazda RX-7 FD3S (YX606679)',
-    hierarchy_order: 7,
-    featured: true,
-  },
-  {
-    id: 'm_8',
     name: 'HIJUME',
     real_name: 'Prince Casaway',
     in_game_name: '[VP] (ICC-Hijume)(09252008)',
     role: 'Vice President',
     cpm_id: '09252008',
     car: 'Nissan Silvia S15 (09252008)',
-    hierarchy_order: 8,
+    hierarchy_order: 7,
     featured: true,
   },
   {
-    id: 'm_9',
+    id: 'm_8',
     name: 'SIR DOM',
     real_name: 'Dominic Denuevo II',
     in_game_name: 'VICE PRESEDENT- I SIR DOM I (BM120909)',
     role: 'Vice President',
     cpm_id: 'BM120909',
     car: 'Honda Civic Type-R (BM120909)',
-    hierarchy_order: 9,
+    hierarchy_order: 8,
     featured: true,
   },
   {
-    id: 'm_10',
-    name: 'BOSS TIN',
-    real_name: 'Rolly Nacino Garcia',
-    in_game_name: 'V P -BOSS TIN',
+    id: 'm_9',
+    name: 'CHACHA',
+    real_name: 'Jhon Carl Bautista',
+    in_game_name: '[VP] ICC CHACHA',
     role: 'Vice President',
-    cpm_id: 'TU606062',
-    car: 'Porsche 911 GT3 RS',
-    hierarchy_order: 10,
-    featured: false,
+    cpm_id: 'VP',
+    car: 'CPM Spec',
+    hierarchy_order: 9,
+    featured: true,
   },
 
   // Admins
   {
-    id: 'm_11',
-    name: 'YELICH / N3KN3K',
+    id: 'm_10',
+    name: 'YELICH',
     real_name: 'Ken Heindrich Narzoles',
     in_game_name: 'ICC-(ADMIN)-(N3KN3K)-QK168210',
     role: 'Admin',
     cpm_id: 'QK168210',
     car: 'CPM Spec (QK168210)',
+    hierarchy_order: 10,
+    featured: false,
+  },
+  {
+    id: 'm_11',
+    name: 'NIO',
+    real_name: 'Jhericho Rapiz',
+    in_game_name: 'ICC | Nio | (EC446438) ADMIN',
+    role: 'Admin',
+    cpm_id: 'EC446438',
+    car: 'Admin Spec (EC446438)',
     hierarchy_order: 11,
     featured: false,
   },
   {
     id: 'm_12',
+    name: 'NHOGZ',
+    real_name: 'Nhogzkie Madera',
+    in_game_name: 'ICC-ADMIN-東NHOGZ東',
+    role: 'Admin',
+    cpm_id: 'Admin',
+    car: 'CPM Spec',
+    hierarchy_order: 12,
+    featured: false,
+  },
+  {
+    id: 'm_13',
     name: 'AZZY',
     real_name: 'Azy Siermento',
     in_game_name: '[ADMIN] ICC (Azzy✿) (AZZYYXX)',
     role: 'Admin',
     cpm_id: 'AZZYYXX',
     car: 'CPM Spec (AZZYYXX)',
-    hierarchy_order: 12,
-    featured: false,
-  },
-  {
-    id: 'm_13',
-    name: 'Nio',
-    real_name: 'เจริโช ราพิช',
-    in_game_name: 'ICC | Nio | (EC446438) ADMIN',
-    role: 'Admin',
-    cpm_id: 'EC446438',
-    car: 'Admin Spec (EC446438)',
     hierarchy_order: 13,
-    featured: false,
-  },
-  {
-    id: 'm_14',
-    name: 'ROXAS',
-    real_name: 'Roxas Jomy',
-    in_game_name: '🖤𝕮𝕴𝕸𝕻𝕮.𝕻𝕳_ADMIN_ROXAS',
-    role: 'Admin',
-    cpm_id: 'Admin',
-    car: 'Admin Spec',
-    hierarchy_order: 14,
     featured: false,
   },
 
   // Members
   {
-    id: 'm_15',
+    id: 'm_14',
     name: 'Missche',
     real_name: 'Karla Mantos',
     in_game_name: 'Missche',
+    role: 'Member',
+    cpm_id: 'Member',
+    car: 'CPM Spec',
+    hierarchy_order: 14,
+    featured: false,
+  },
+  {
+    id: 'm_15',
+    name: 'bwisetor',
+    real_name: 'Jhon Aerol Gonzaga',
+    in_game_name: 'bwisetor',
     role: 'Member',
     cpm_id: 'Member',
     car: 'CPM Spec',
@@ -219,114 +223,81 @@ export const fallbackMembers = [
   },
   {
     id: 'm_16',
-    name: 'bwisetor',
-    real_name: 'Jhon Aerol Gonzaga',
-    in_game_name: 'bwisetor',
-    role: 'Member',
-    cpm_id: 'Member',
-    car: 'CPM Spec',
-    hierarchy_order: 16,
-    featured: false,
-  },
-  {
-    id: 'm_17',
-    name: 'NHOGZ',
-    real_name: 'Nhogzkie Madera',
-    in_game_name: '[MEMBER]ICC-東NHOGZ東',
-    role: 'Member',
-    cpm_id: 'Member',
-    car: 'CPM Spec',
-    hierarchy_order: 17,
-    featured: false,
-  },
-  {
-    id: 'm_18',
-    name: 'CHACHA',
-    real_name: 'Jhon Carl Bautista',
-    in_game_name: '[MEMBER] CHACHA',
-    role: 'Member',
-    cpm_id: 'Member',
-    car: 'CPM Spec',
-    hierarchy_order: 18,
-    featured: false,
-  },
-  {
-    id: 'm_19',
     name: 'PRITS',
     real_name: 'Pret Zel',
     in_game_name: 'ICC (PRITS) (PRITSSS) MEMBER',
     role: 'Member',
     cpm_id: 'PRITSSS',
     car: 'CPM Spec (PRITSSS)',
-    hierarchy_order: 19,
+    hierarchy_order: 16,
     featured: false,
   },
   {
-    id: 'm_20',
+    id: 'm_17',
     name: 'kambal ni Joshua Garcia',
     real_name: 'Michael Viray Bondoc',
     in_game_name: 'kambal ni Joshua Garcia',
     role: 'Member',
     cpm_id: 'Member',
     car: 'CPM Spec',
-    hierarchy_order: 20,
+    hierarchy_order: 17,
     featured: false,
   },
 
   // New Members
   {
-    id: 'm_21',
+    id: 'm_18',
     name: 'Kapitan',
     real_name: 'Joey Lutap',
     in_game_name: 'Kapitan(NF093187)NEW MEMBER',
     role: 'New Member',
     cpm_id: 'NF093187',
     car: 'CPM Spec (NF093187)',
-    hierarchy_order: 21,
+    hierarchy_order: 18,
     featured: false,
   },
   {
-    id: 'm_22',
+    id: 'm_19',
     name: 'ICC (MANOK)',
     real_name: 'Alfon Jedric Romblon',
     in_game_name: 'ICC (MANOK) (AP634449) NEW MEMBER',
     role: 'New Member',
     cpm_id: 'AP634449',
     car: 'CPM Spec (AP634449)',
-    hierarchy_order: 22,
+    hierarchy_order: 19,
     featured: false,
   },
   {
-    id: 'm_23',
+    id: 'm_20',
     name: 'Jape',
     real_name: 'Jaf Justin Petacio',
     in_game_name: 'ICC (Jape) (YR237424) NEW MEMBER',
     role: 'New Member',
     cpm_id: 'YR237424',
     car: 'CPM Spec (YR237424)',
-    hierarchy_order: 23,
+    hierarchy_order: 20,
     featured: false,
   },
   {
-    id: 'm_24',
+    id: 'm_21',
     name: 'Zekee',
     real_name: 'Ezekiel Tanaleon',
     in_game_name: 'ICC (Zekee) (ZP660188) NEW MEMBER',
     role: 'New Member',
     cpm_id: 'ZP660188',
     car: 'CPM Spec (ZP660188)',
-    hierarchy_order: 24,
+    hierarchy_order: 21,
     featured: false,
   },
   {
-    id: 'm_25',
+    id: 'm_22',
     name: 'ICC-CUTE',
     real_name: 'Dwayne Rimando',
     in_game_name: 'ICC-CUTE (CA186858) NEW MEMBER',
     role: 'New Member',
     cpm_id: 'CA186858',
     car: 'CPM Spec (CA186858)',
-    hierarchy_order: 25,
+    hierarchy_order: 22,
     featured: false,
   },
 ];
@@ -348,7 +319,7 @@ export default function AdminMembers() {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = dbMembers !== null && dbMembers !== undefined ? dbMembers : fallbackMembers;
+  const memberList = dbMembers && dbMembers.length > 0 ? dbMembers : fallbackMembers;
 
   const filtered = memberList.filter((m) => {
     const q = search.toLowerCase();
@@ -393,6 +364,18 @@ export default function AdminMembers() {
     setTargetRole(nextRole);
     setPromoReason('');
     setIsPromoModalOpen(true);
+  };
+
+  const handleAvatarFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setEditingMember((prev) => ({ ...prev, avatar_url: evt.target.result }));
+      addToast('📸 Avatar photo loaded!', 'success');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async (e) => {
@@ -535,7 +518,7 @@ export default function AdminMembers() {
             </span>
           </div>
           <p className="text-sm sm:text-base text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            Promote members to Admin or Co-Owner ranks, configure driver specs, and update hierarchy order.
+            Promote members to Admin or Co-Owner ranks, configure driver specs, and upload photo avatars directly from phone or PC.
           </p>
         </div>
 
@@ -855,7 +838,7 @@ export default function AdminMembers() {
                     rows="3"
                     value={promoReason}
                     onChange={(e) => setPromoReason(e.target.value)}
-                    placeholder="e.g. Promoted to Co-Owner for outstanding leadership and event coordination."
+                    placeholder="e.g. Promoted to Vice President for outstanding leadership and event coordination."
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
                   />
                 </div>
@@ -1008,14 +991,28 @@ export default function AdminMembers() {
 
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                      Avatar Image URL
+                      Avatar Image Photo (Mobile / Phone / PC Upload or URL)
                     </label>
+
+                    <div className="mb-2">
+                      <label className="flex items-center justify-center gap-2 p-3 rounded-xl bg-black/40 border border-dashed border-amber-500/40 hover:border-amber-400 text-white text-xs font-bold cursor-pointer transition-colors">
+                        <Camera className="w-4 h-4 text-amber-400" />
+                        <span>Upload Avatar Photo from Phone / Device</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarFileUpload}
+                        />
+                      </label>
+                    </div>
+
                     <input
                       type="url"
                       value={editingMember.avatar_url || ''}
                       onChange={(e) => setEditingMember({ ...editingMember, avatar_url: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                      placeholder="https://... or upload photo above"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
                     />
                   </div>
 
