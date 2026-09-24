@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, X, ExternalLink, Film, ArrowRight } from 'lucide-react';
 import { useInView, useSupabaseQuery } from '../lib/hooks';
-import { safeArrayParse } from '../lib/storage';
 import SectionHeader from './SectionHeader';
 
 const fallbackMontages = [
@@ -37,17 +36,13 @@ export default function FeaturedMontagesSection() {
   const [ref, inView] = useInView();
   const [activeVideo, setActiveVideo] = useState(null);
 
-  const [localVideos] = useState(() => safeArrayParse('icc_custom_videos'));
-
   const { data: montages } = useSupabaseQuery('videos', {
     filter: { featured: true },
     order: { column: 'created_at', ascending: false },
     limit: 2,
   });
 
-  const validLocal = (Array.isArray(localVideos) ? localVideos : []).filter((v) => v && typeof v === 'object');
-  const validBase = (Array.isArray(montages) && montages.length > 0 ? montages : fallbackMontages).filter((b) => b && typeof b === 'object');
-  const displayMontages = [...validLocal.filter((v) => v.featured), ...validBase.filter((b) => !validLocal.some((l) => l.id === b.id))];
+  const displayMontages = Array.isArray(montages) && montages.length > 0 ? montages : fallbackMontages;
 
   return (
     <section id="montages" className="py-24 relative overflow-hidden">

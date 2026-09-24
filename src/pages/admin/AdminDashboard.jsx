@@ -14,27 +14,15 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { countRows, fetchAll } from '../../lib/supabase';
-import { defaultPastCollabs } from '../CollaboratePage';
-
-function safeArrayParse(key) {
-  try {
-    const val = localStorage.getItem(key);
-    if (!val || val === 'undefined' || val === 'null') return [];
-    const parsed = JSON.parse(val);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    return [];
-  }
-}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     applications: 0,
     pendingApps: 0,
-    collaborations: 1,
-    members: 22,
-    videos: 3,
-    gallery: 8,
+    collaborations: 0,
+    members: 0,
+    videos: 0,
+    gallery: 0,
     events: 0,
   });
 
@@ -55,20 +43,18 @@ export default function AdminDashboard() {
         ]);
 
         const totalApps = apps ? apps.length : 0;
-        const deletedPastIds = safeArrayParse('icc_deleted_past_collabs');
-        const rawPast = pastCols && pastCols.length > 0 ? pastCols : defaultPastCollabs;
-        const visiblePastCols = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
-        const totalPastCols = visiblePastCols.length;
-        const totalReqCols = reqCols || 0;
+        const totalPending = typeof pendingApps === 'number' ? pendingApps : 0;
+        const totalPastCols = pastCols ? pastCols.length : 0;
+        const totalReqCols = typeof reqCols === 'number' ? reqCols : 0;
         const totalCols = totalPastCols + totalReqCols;
-        const totalMems = mems && mems.length > 0 ? mems.length : 22;
-        const totalVids = vids && vids.length > 0 ? vids.length : 3;
-        const totalGals = gals && gals.length > 0 ? gals.length : 8;
+        const totalMems = mems ? mems.length : 0;
+        const totalVids = vids ? vids.length : 0;
+        const totalGals = gals ? gals.length : 0;
         const totalEvts = evts ? evts.length : 0;
 
         setStats({
           applications: totalApps,
-          pendingApps: pendingApps || totalApps,
+          pendingApps: totalPending,
           collaborations: totalCols,
           members: totalMems,
           videos: totalVids,

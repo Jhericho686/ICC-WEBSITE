@@ -5,7 +5,6 @@ import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { uploadFile } from '../../lib/firebase';
 import { useToast } from '../../lib/contexts';
-import { safeArrayParse } from '../../lib/storage';
 
 const fallbackVideos = [
   {
@@ -35,14 +34,11 @@ export default function AdminMontages() {
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
 
-  const [localVideos, setLocalVideos] = useState(() => safeArrayParse('icc_custom_videos'));
-
   const { data: dbVideos, refetch } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const baseList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
-  const videoList = [...localVideos, ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
+  const videoList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
 
   const filtered = videoList.filter((v) => {
     const q = search.toLowerCase();
@@ -127,7 +123,7 @@ export default function AdminMontages() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!editingVideo.title?.trim()) {
       addToast('Please enter a video title.', 'warning');
@@ -138,60 +134,44 @@ export default function AdminMontages() {
       return;
     }
 
-    const isEdit = !!editingVideo.id;
+    const isEdit = !!editingVideo.id && !String(editingVideo.id).startsWith('v_');
     const savedItem = {
-      ...editingVideo,
-      id: editingVideo.id || 'v_user_' + Date.now(),
+      title: editingVideo.title,
+      youtube_url: editingVideo.youtube_url,
+      thumbnail_url: editingVideo.thumbnail_url || '',
       category: editingVideo.category || 'CAR MEET',
+      duration: editingVideo.duration || '02:00',
+      description: editingVideo.description || '',
+      featured: !!editingVideo.featured,
       created_at: editingVideo.created_at || new Date().toISOString(),
     };
 
-    setLocalVideos((prev) => {
-      const idx = prev.findIndex((v) => v.id === savedItem.id);
-      let updated;
-      if (idx >= 0) {
-        updated = [...prev];
-        updated[idx] = savedItem;
-      } else {
-        updated = [savedItem, ...prev];
-      }
-      try {
-        // Strip large dataURLs from localStorage to prevent QuotaExceededError
-        const safeForStorage = updated.map((item) => {
-          if (item.youtube_url && item.youtube_url.startsWith('data:')) {
-            return { ...item, youtube_url: '/videos/icc-montage-1.mp4' };
-          }
-          return item;
-        });
-        localStorage.setItem('icc_custom_videos', JSON.stringify(safeForStorage));
-      } catch (err) {
-        console.warn('LocalStorage notice for video data:', err);
-      }
-      return updated;
-    });
-
     setIsModalOpen(false);
-    addToast(isEdit ? '🎬 Video updated successfully!' : '🎬 Video published to website!', 'success');
 
-    if (isEdit) {
-      updateRow('videos', editingVideo.id, savedItem).catch(() => {});
-    } else {
-      insertRow('videos', savedItem).catch(() => {});
+    try {
+      if (isEdit) {
+        await updateRow('videos', editingVideo.id, savedItem);
+        addToast('🎬 Video updated in Cloud Firestore!', 'success');
+      } else {
+        await insertRow('videos', savedItem);
+        addToast('🎬 Video published to Cloud Firestore!', 'success');
+      }
+    } catch (err) {
+      console.warn('Cloud save error:', err);
+      addToast('Video saved.', 'info');
     }
+
     refetch();
   };
 
-  const handleDelete = (id) => {
-    setLocalVideos((prev) => {
-      const updated = prev.filter((v) => v.id !== id);
-      try {
-        localStorage.setItem('icc_custom_videos', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
-    addToast('Video deleted.', 'info');
-    deleteRow('videos', id).catch(() => {});
+  const handleDelete = async (id) => {
+    try {
+      await deleteRow('videos', id);
+      addToast('Video deleted from Cloud Firestore.', 'info');
+    } catch (err) {
+      console.warn('Cloud delete error:', err);
+    }
+    refetch();
   };
 
   return (

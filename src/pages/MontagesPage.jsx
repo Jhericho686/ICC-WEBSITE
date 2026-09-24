@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, X, Film, Video as VideoIcon, Image as ImageIcon, Clapperboard } from 'lucide-react';
 import { useSupabaseQuery } from '../lib/hooks';
-import { safeArrayParse } from '../lib/storage';
 import SectionHeader from '../components/SectionHeader';
 
 const fallbackVideos = [
@@ -42,14 +41,11 @@ function extractYoutubeId(url) {
 export default function MontagesPage() {
   const [activeVideo, setActiveVideo] = useState(null);
 
-  const [localVideos] = useState(() => safeArrayParse('icc_custom_videos'));
-
   const { data: dbVideos } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const baseList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
-  const videoList = [...localVideos, ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
+  const videoList = dbVideos && dbVideos.length > 0 ? dbVideos : fallbackVideos;
 
   return (
     <div className="pt-28 pb-24 min-h-screen">

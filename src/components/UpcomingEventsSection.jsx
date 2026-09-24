@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Users, ArrowRight } from 'lucide-react';
 import { useInView, useSupabaseQuery } from '../lib/hooks';
-import { safeArrayParse } from '../lib/storage';
 import SectionHeader from './SectionHeader';
 
 const fallbackEvents = [
@@ -58,28 +57,12 @@ function formatTime(dateStr) {
 export default function UpcomingEventsSection() {
   const [ref, inView] = useInView();
 
-  const [isCleared] = useState(() => {
-    return localStorage.getItem('icc_events_cleared') === 'true';
-  });
-
-  const [localEvents] = useState(() => safeArrayParse('icc_custom_events'));
-  const [deletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
-
   const { data: events } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: true },
     limit: 3,
   });
 
-  const validLocal = (Array.isArray(localEvents) ? localEvents : []).filter((e) => e && typeof e === 'object');
-  const validBase = (Array.isArray(events) && events.length > 0 ? events : fallbackEvents).filter((e) => e && typeof e === 'object');
-
-  const rawList = isCleared ? [] : [...validLocal, ...validBase.filter((b) => !validLocal.some((l) => l.id === b.id))];
-  const displayEvents = rawList.filter((e) =>
-    e &&
-    !deletedIds.includes(String(e.id)) &&
-    !deletedIds.includes(e.id) &&
-    !deletedIds.includes(e.title)
-  );
+  const displayEvents = Array.isArray(events) && events.length > 0 ? events : fallbackEvents;
 
   return (
     <section id="events" className="py-28 relative overflow-hidden">

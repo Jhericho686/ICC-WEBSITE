@@ -4,7 +4,6 @@ import { Handshake, Send, CheckCircle, Star, Calendar, Users, Trophy } from 'luc
 import { useSupabaseQuery } from '../lib/hooks';
 import { insertRow } from '../lib/supabase';
 import { useToast } from '../lib/contexts';
-import { safeArrayParse } from '../lib/storage';
 import SectionHeader from '../components/SectionHeader';
 
 export const defaultPastCollabs = [
@@ -51,14 +50,11 @@ export default function CollaboratePage() {
   const [submittedId, setSubmittedId] = useState(null);
   const { addToast } = useToast();
 
-  const [deletedPastIds] = useState(() => safeArrayParse('icc_deleted_past_collabs'));
-
   const { data: dbPastCollabs } = useSupabaseQuery('past_collaborations', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const rawPast = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
-  const pastCollabList = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
+  const pastCollabList = dbPastCollabs || [];
 
   const [formData, setFormData] = useState({
     clan_or_org: '',

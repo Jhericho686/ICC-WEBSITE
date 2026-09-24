@@ -20,7 +20,6 @@ import {
 import { useSupabaseQuery } from '../../lib/hooks';
 import { updateRow, deleteRow, insertRow, logActivity } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
-import { safeArrayParse } from '../../lib/storage';
 
 const fallbackApps = [];
 

@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Users, Award, ShieldAlert, CheckCircle2, Image as ImageIcon, Video, ExternalLink } from 'lucide-react';
 import { useSupabaseQuery } from '../lib/hooks';
-import { safeArrayParse } from '../lib/storage';
 import SectionHeader from '../components/SectionHeader';
 
 export const fallbackEvents = [
@@ -73,27 +72,11 @@ function formatTime(dateStr) {
 export default function EventsPage() {
   const [activeTab, setActiveTab] = useState('past');
 
-  const [isCleared] = useState(() => {
-    return localStorage.getItem('icc_events_cleared') === 'true';
-  });
-
-  const [localEvents] = useState(() => safeArrayParse('icc_custom_events'));
-  const [deletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
-
   const { data: dbEvents } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },
   });
 
-  const baseList = isCleared
-    ? []
-    : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
-
-  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
-  const eventList = rawList.filter((e) =>
-    !deletedIds.includes(String(e.id)) &&
-    !deletedIds.includes(e.id) &&
-    !deletedIds.includes(e.title)
-  );
+  const eventList = dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents;
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();

@@ -4,7 +4,6 @@ import { Plus, Search, Edit2, Trash2, Calendar, MapPin, Clock, Users, Image as I
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
-import { safeArrayParse } from '../../lib/storage';
 import { fallbackEvents } from '../EventsPage';
 
 export default function AdminEvents() {
@@ -13,27 +12,11 @@ export default function AdminEvents() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToast } = useToast();
 
-  const [isCleared, setIsCleared] = useState(() => {
-    return localStorage.getItem('icc_events_cleared') === 'true';
-  });
-
-  const [deletedIds, setDeletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
-  const [localEvents, setLocalEvents] = useState(() => safeArrayParse('icc_custom_events'));
-
   const { data: dbEvents, refetch } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: false },
   });
 
-  const baseList = isCleared
-    ? []
-    : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
-
-  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
-  const eventList = rawList.filter((e) =>
-    !deletedIds.includes(String(e.id)) &&
-    !deletedIds.includes(e.id) &&
-    !deletedIds.includes(e.title)
-  );
+  const eventList = dbEvents || [];
 
   const filtered = eventList.filter((e) => {
     const q = search.toLowerCase();
@@ -89,84 +72,71 @@ export default function AdminEvents() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!editingEvent.title?.trim()) {
       addToast('Please enter an event title.', 'warning');
       return;
     }
 
-    const isEdit = !!editingEvent.id;
+    const isEdit = !!editingEvent.id && !String(editingEvent.id).startsWith('e_fallback_');
     const savedItem = {
-      ...editingEvent,
-      id: editingEvent.id || 'e_user_' + Date.now(),
+      title: editingEvent.title,
       category: editingEvent.category || 'CAR MEET',
       event_date: editingEvent.event_date || new Date().toISOString(),
+      location: editingEvent.location || 'Server ICC-MAIN',
+      description: editingEvent.description || '',
+      host: editingEvent.host || 'ICC Staff',
+      requirements: editingEvent.requirements || 'Clean builds only',
+      status: editingEvent.status || 'upcoming',
+      image_url: editingEvent.image_url || '/gallery/icc-meet-grand-gathering.png',
+      video_url: editingEvent.video_url || '',
+      recap_notes: editingEvent.recap_notes || '',
     };
 
-    setIsCleared(false);
-    localStorage.removeItem('icc_events_cleared');
-
-    setLocalEvents((prev) => {
-      const idx = prev.findIndex((ev) => ev.id === savedItem.id);
-      let updated;
-      if (idx >= 0) {
-        updated = [...prev];
-        updated[idx] = savedItem;
-      } else {
-        updated = [savedItem, ...prev];
-      }
-      try {
-        localStorage.setItem('icc_custom_events', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
     setIsModalOpen(false);
-    addToast(isEdit ? '📅 Event updated successfully!' : '📅 New event added to calendar!', 'success');
 
-    if (isEdit) {
-      updateRow('events', editingEvent.id, savedItem).catch(() => {});
-    } else {
-      insertRow('events', savedItem).catch(() => {});
+    try {
+      if (isEdit) {
+        await updateRow('events', editingEvent.id, savedItem);
+        addToast('📅 Event updated in Cloud Firestore!', 'success');
+      } else {
+        await insertRow('events', savedItem);
+        addToast('📅 Event published to Cloud Firestore!', 'success');
+      }
+    } catch (err) {
+      console.warn('Cloud save error:', err);
+      addToast('Event saved.', 'info');
     }
+
+    refetch();
   };
 
-  const handleDelete = (item) => {
+  const handleDelete = async (item) => {
     const targetId = typeof item === 'object' ? item.id : item;
-    const targetTitle = typeof item === 'object' ? item.title : '';
 
-    setDeletedIds((prev) => {
-      const updated = Array.from(new Set([...prev, String(targetId), targetId, targetTitle])).filter(Boolean);
-      try {
-        localStorage.setItem('icc_deleted_events', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
+    try {
+      await deleteRow('events', targetId);
+      addToast('Event deleted from Cloud Firestore.', 'info');
+    } catch (err) {
+      console.warn('Cloud delete error:', err);
+    }
 
-    setLocalEvents((prev) => {
-      const updated = prev.filter((e) => String(e.id) !== String(targetId) && e.title !== targetTitle);
-      try {
-        localStorage.setItem('icc_custom_events', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
-    addToast('Event deleted.', 'info');
-    deleteRow('events', targetId).catch(() => {});
+    refetch();
   };
 
-  const handleClearAllEvents = () => {
-    setIsCleared(true);
-    setLocalEvents([]);
-    localStorage.setItem('icc_events_cleared', 'true');
-    localStorage.setItem('icc_custom_events', '[]');
-    addToast('All events cleared! You can now add your past events.', 'info');
+  const handleClearAllEvents = async () => {
+    if (!confirm('Are you sure you want to clear all events from Cloud Firestore?')) return;
+    addToast('Clearing events from cloud...', 'info');
+
     if (dbEvents && dbEvents.length > 0) {
       for (const evt of dbEvents) {
-        deleteRow('events', evt.id).catch(() => {});
+        await deleteRow('events', evt.id).catch(() => {});
       }
     }
+
+    addToast('All events cleared from Cloud Firestore!', 'success');
+    refetch();
   };
 
   return (

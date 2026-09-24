@@ -4,8 +4,6 @@ import { Search, Handshake, CheckCircle, XCircle, Trash2, Eye, Calendar, Users, 
 import { useSupabaseQuery } from '../../lib/hooks';
 import { updateRow, deleteRow, insertRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
-import { safeArrayParse } from '../../lib/storage';
-import { defaultPastCollabs } from '../CollaboratePage';
 
 export default function AdminCollaborations() {
   const [activeTab, setActiveTab] = useState('past'); // 'past' | 'inquiries'
@@ -15,8 +13,6 @@ export default function AdminCollaborations() {
   const [isPastModalOpen, setIsPastModalOpen] = useState(false);
   const { addToast } = useToast();
 
-  const [deletedPastIds, setDeletedPastIds] = useState(() => safeArrayParse('icc_deleted_past_collabs'));
-
   const { data: dbPastCollabs, refetch: refetchPast } = useSupabaseQuery('past_collaborations', {
     order: { column: 'created_at', ascending: false },
   });
@@ -25,8 +21,7 @@ export default function AdminCollaborations() {
     order: { column: 'created_at', ascending: false },
   });
 
-  const rawPast = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
-  const pastCollabs = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
+  const pastCollabs = dbPastCollabs || [];
   const list = dbCollabs || [];
 
   const filteredInquiries = list.filter((c) => {
@@ -122,20 +117,13 @@ export default function AdminCollaborations() {
     refetchPast();
   };
 
-  const handleDeletePastCollab = async (id, clanName) => {
-    setDeletedPastIds((prev) => {
-      const updated = Array.from(new Set([...prev, String(id), clanName].filter(Boolean)));
-      try {
-        localStorage.setItem('icc_deleted_past_collabs', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
+  const handleDeletePastCollab = async (id) => {
     try {
       await deleteRow('past_collaborations', id);
-    } catch (err) {}
-
-    addToast('Past collaboration deleted.', 'info');
+      addToast('Past collaboration deleted from Cloud Firestore.', 'info');
+    } catch (err) {
+      console.warn('Cloud delete error:', err);
+    }
     refetchPast();
   };
 
@@ -256,7 +244,7 @@ export default function AdminCollaborations() {
                       <Edit2 className="w-4 h-4 text-amber-400" />
                     </button>
                     <button
-                      onClick={() => handleDeletePastCollab(collab.id, collab.clan)}
+                      onClick={() => handleDeletePastCollab(collab.id)}
                       className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                       title="Delete Past Collaboration"
                     >
