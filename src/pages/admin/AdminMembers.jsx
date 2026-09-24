@@ -22,7 +22,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { insertRow, updateRow, deleteRow, logActivity } from '../../lib/supabase';
+import { insertRow, updateRow, deleteRow, logActivity, uploadMediaFile } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 
 const defaultRoles = [
@@ -306,6 +306,7 @@ export default function AdminMembers() {
   const [search, setSearch] = useState('');
   const [editingMember, setEditingMember] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingMember, setDeletingMember] = useState(null);
 
   // Dedicated Member Promotion Modal State
   const [promoMember, setPromoMember] = useState(null);
@@ -319,7 +320,7 @@ export default function AdminMembers() {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = dbMembers && dbMembers.length > 0 ? dbMembers : fallbackMembers;
+  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0 ? dbMembers : (dbMembers ? dbMembers : fallbackMembers);
 
   const filtered = memberList.filter((m) => {
     const q = search.toLowerCase();
@@ -366,44 +367,65 @@ export default function AdminMembers() {
     setIsPromoModalOpen(true);
   };
 
-  const handleAvatarFileUpload = (e) => {
+  const handleAvatarFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      setEditingMember((prev) => ({ ...prev, avatar_url: evt.target.result }));
-      addToast('📸 Avatar photo loaded!', 'success');
-    };
-    reader.readAsDataURL(file);
+    addToast('📸 Processing avatar photo...', 'info');
+    try {
+      const url = await uploadMediaFile('members', file);
+      if (url) {
+        setEditingMember((prev) => ({ ...prev, avatar_url: url }));
+        addToast('📸 Avatar photo loaded successfully!', 'success');
+      }
+    } catch (err) {
+      console.warn('Avatar upload fallback error:', err);
+      addToast('Error loading avatar image.', 'error');
+    }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (editingMember.id) {
+      if (editingMember.id && !String(editingMember.id).startsWith('m_')) {
         await updateRow('members', editingMember.id, editingMember);
-        addToast('Member details updated.', 'success');
+        addToast('✅ Member details updated in Cloud Firestore.', 'success');
       } else {
         await insertRow('members', editingMember);
-        addToast('New clan member added to roster.', 'success');
+        addToast('🎉 New clan member registered to Cloud Firestore.', 'success');
       }
       setIsModalOpen(false);
       refetch();
     } catch (err) {
-      addToast('Updated locally: ' + err.message, 'info');
-      setIsModalOpen(false);
+      console.warn('Member save error:', err);
+      addToast('Error saving member: ' + err.message, 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to remove this member from roster?')) return;
+  const handleDelete = (member) => {
+    setDeletingMember(member);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingMember) return;
     try {
-      await deleteRow('members', id);
-      addToast('Member removed.', 'info');
+      await deleteRow('members', deletingMember.id);
+      addToast(`🗑️ ${deletingMember.name} deleted from Clan Roster & Cloud Firestore.`, 'info');
+      setDeletingMember(null);
       refetch();
     } catch (err) {
-      addToast('Member removed locally.', 'info');
+      addToast('Error removing member: ' + err.message, 'error');
+    }
+  };
+
+  const handleToggleFeatured = async (member) => {
+    try {
+      const nextFeatured = !member.featured;
+      await updateRow('members', member.id, { featured: nextFeatured });
+      addToast(`★ ${member.name} ${nextFeatured ? 'highlighted as Featured' : 'removed from Featured'}.`, 'success');
+      refetch();
+    } catch (err) {
+      addToast('Error updating featured status: ' + err.message, 'error');
     }
   };
 
@@ -447,10 +469,6 @@ export default function AdminMembers() {
       return;
     }
 
-    if (!confirm(`Demote ${member.name} from ${member.role} to ${roleHierarchy[currentIdx - 1]}?`)) {
-      return;
-    }
-
     const prevRole = roleHierarchy[currentIdx - 1];
 
     try {
@@ -462,11 +480,11 @@ export default function AdminMembers() {
         member.id,
         `DEMOTION: ${member.name} demoted from ${member.role} to ${prevRole}`
       );
-      addToast(`${member.name} role changed to ${prevRole}.`, 'info');
+      addToast(`🔻 ${member.name} role changed to ${prevRole}.`, 'info');
       refetch();
     } catch (err) {
       member.role = prevRole;
-      addToast(`${member.name} role changed to ${prevRole}.`, 'info');
+      addToast(`🔻 ${member.name} role changed to ${prevRole}.`, 'info');
     }
   };
 
@@ -671,11 +689,22 @@ export default function AdminMembers() {
                       <div className="text-xs text-white/60">{m.car || 'CPM Spec'}</div>
                     </td>
                     <td className="px-8 py-6">
-                      {m.featured ? (
-                        <span className="text-amber-400 font-extrabold flex items-center gap-1">★ Yes</span>
-                      ) : (
-                        <span className="text-white/40">No</span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFeatured(m)}
+                        className="cursor-pointer transition-transform hover:scale-105"
+                        title="Click to toggle featured status"
+                      >
+                        {m.featured ? (
+                          <span className="text-amber-400 font-extrabold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30">
+                            ★ Yes
+                          </span>
+                        ) : (
+                          <span className="text-white/40 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:text-white/80">
+                            No
+                          </span>
+                        )}
+                      </button>
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-2.5">
@@ -721,7 +750,7 @@ export default function AdminMembers() {
 
                         {/* Delete Button */}
                         <button
-                          onClick={() => handleDelete(m.id)}
+                          onClick={() => handleDelete(m)}
                           className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                           title="Delete Member"
                         >
@@ -1014,6 +1043,27 @@ export default function AdminMembers() {
                       placeholder="https://... or upload photo above"
                       className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
                     />
+
+                    {editingMember.avatar_url && (
+                      <div className="mt-2.5 flex items-center gap-3 p-2.5 rounded-xl bg-black/60 border border-white/10">
+                        <img
+                          src={editingMember.avatar_url}
+                          alt="Avatar Preview"
+                          className="w-12 h-12 rounded-xl object-cover border border-amber-400/40"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-white block">Avatar Preview</span>
+                          <span className="text-[11px] text-emerald-400 font-mono block truncate">Ready to save</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingMember({ ...editingMember, avatar_url: '' })}
+                          className="text-xs text-red-400 hover:text-red-300 font-bold px-2 py-1 rounded bg-red-500/10 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -1059,6 +1109,85 @@ export default function AdminMembers() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {deletingMember && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingMember(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Remove from Roster?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-2">
+                <div className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>{deletingMember.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
+                    {deletingMember.role || 'Member'}
+                  </span>
+                </div>
+                <div className="text-xs text-amber-400 font-mono font-semibold">
+                  {deletingMember.in_game_name}
+                </div>
+                {deletingMember.real_name && (
+                  <div className="text-xs text-white/50">
+                    Pilot Name: {deletingMember.real_name}
+                  </div>
+                )}
+                {deletingMember.car && (
+                  <div className="text-xs text-white/50">
+                    Assigned CPM: {deletingMember.car}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This will delete this member from Google Cloud Firestore and remove them from all public roster and hierarchy pages.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingMember(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Member
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

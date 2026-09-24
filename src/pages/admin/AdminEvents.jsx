@@ -2,14 +2,17 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Calendar, MapPin, Clock, Users, Image as ImageIcon, Video, Upload } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
+import { insertRow, updateRow, deleteRow, uploadMediaFile } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 import { fallbackEvents } from '../EventsPage';
 
 export default function AdminEvents() {
   const [search, setSearch] = useState('');
   const [editingEvent, setEditingEvent] = useState(null);
+  const [deletingEvent, setDeletingEvent] = useState(null);
+  const [clearingAll, setClearingAll] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { addToast } = useToast();
 
   const { data: dbEvents, refetch } = useSupabaseQuery('events', {
@@ -48,28 +51,55 @@ export default function AdminEvents() {
     setIsModalOpen(true);
   };
 
-  const handleImageFileUpload = (e) => {
+  const handleImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      setEditingEvent((prev) => ({ ...prev, image_url: evt.target.result }));
-      addToast('📸 Event photo loaded!', 'success');
-    };
-    reader.readAsDataURL(file);
+    setIsUploading(true);
+    addToast('📸 Uploading event photo...', 'info');
+    try {
+      const url = await uploadMediaFile('events', file);
+      if (url) {
+        setEditingEvent((prev) => ({ ...prev, image_url: url }));
+        addToast('📸 Event photo loaded & uploaded!', 'success');
+      }
+    } catch (err) {
+      console.warn('Event image upload error:', err);
+      addToast('Error uploading photo: ' + err.message, 'error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleVideoFileUpload = (e) => {
+  const handleVideoFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      setEditingEvent((prev) => ({ ...prev, video_url: evt.target.result }));
-      addToast('🎬 Event recap video loaded!', 'success');
-    };
-    reader.readAsDataURL(file);
+    setIsUploading(true);
+    addToast('🎬 Uploading event video reel...', 'info');
+    try {
+      const url = await uploadMediaFile('events', file);
+      if (url) {
+        setEditingEvent((prev) => ({ ...prev, video_url: url }));
+        addToast('🎬 Event recap video attached!', 'success');
+      }
+    } catch (err) {
+      console.warn('Event video upload error:', err);
+      addToast('Error uploading video: ' + err.message, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleToggleStatus = async (item) => {
+    try {
+      const nextStatus = item.status === 'upcoming' ? 'past' : 'upcoming';
+      await updateRow('events', item.id, { status: nextStatus });
+      addToast(`📅 Event marked as ${nextStatus.toUpperCase()}!`, 'success');
+      refetch();
+    } catch (err) {
+      addToast('Error updating status: ' + err.message, 'error');
+    }
   };
 
   const handleSave = async (e) => {
@@ -106,28 +136,32 @@ export default function AdminEvents() {
       }
     } catch (err) {
       console.warn('Cloud save error:', err);
-      addToast('Event saved.', 'info');
+      addToast('Error saving event: ' + err.message, 'error');
     }
 
     refetch();
   };
 
-  const handleDelete = async (item) => {
-    const targetId = typeof item === 'object' ? item.id : item;
+  const handleDelete = (item) => {
+    setDeletingEvent(item);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deletingEvent) return;
     try {
-      await deleteRow('events', targetId);
-      addToast('Event deleted from Cloud Firestore.', 'info');
+      await deleteRow('events', deletingEvent.id);
+      addToast(`🗑️ "${deletingEvent.title}" removed from Cloud Firestore.`, 'info');
+      setDeletingEvent(null);
+      refetch();
     } catch (err) {
       console.warn('Cloud delete error:', err);
+      addToast('Error deleting event: ' + err.message, 'error');
     }
-
-    refetch();
   };
 
-  const handleClearAllEvents = async () => {
-    if (!confirm('Are you sure you want to clear all events from Cloud Firestore?')) return;
-    addToast('Clearing events from cloud...', 'info');
+  const handleConfirmClearAll = async () => {
+    setClearingAll(false);
+    addToast('Clearing events from Cloud Firestore...', 'info');
 
     if (dbEvents && dbEvents.length > 0) {
       for (const evt of dbEvents) {
@@ -153,7 +187,7 @@ export default function AdminEvents() {
 
         <div className="flex items-center gap-3 shrink-0 flex-wrap">
           <button
-            onClick={handleClearAllEvents}
+            onClick={() => setClearingAll(true)}
             className="px-5 py-4 rounded-2xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-extrabold text-sm flex items-center gap-2 border border-red-500/30 transition-all cursor-pointer"
           >
             <Trash2 className="w-5 h-5" /> Clear All Events
@@ -251,28 +285,35 @@ export default function AdminEvents() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span
-                        className={`inline-flex px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
-                          item.status === 'upcoming'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(item)}
+                        className="cursor-pointer transition-transform hover:scale-105"
+                        title="Click to toggle between Upcoming and Past"
                       >
-                        {item.status || 'past'}
-                      </span>
+                        <span
+                          className={`inline-flex px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
+                            item.status === 'upcoming'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30'
+                          }`}
+                        >
+                          {item.status || 'past'}
+                        </span>
+                      </button>
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => openEditModal(item)}
-                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors"
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors cursor-pointer"
                           title="Edit Event"
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(item)}
-                          className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors"
+                          className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                           title="Delete Event"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -478,6 +519,126 @@ export default function AdminEvents() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE SINGLE EVENT MODAL */}
+      <AnimatePresence>
+        {deletingEvent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingEvent(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Delete Event?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Cloud Calendar Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+                <h4 className="text-sm font-bold text-white">{deletingEvent.title}</h4>
+                <p className="text-xs text-amber-400 font-medium">{deletingEvent.category} • {deletingEvent.location}</p>
+                <p className="text-[11px] text-white/50 font-mono">{new Date(deletingEvent.event_date).toLocaleString()}</p>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This event will be permanently deleted from Cloud Firestore and removed from the public event calendar.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingEvent(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Event
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP CLEAR ALL EVENTS MODAL */}
+      <AnimatePresence>
+        {clearingAll && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setClearingAll(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/50 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 25px 70px rgba(239, 68, 68, 0.35)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/25 text-red-400 flex items-center justify-center shrink-0 border border-red-500/40">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Clear All Events?
+                  </h3>
+                  <p className="text-xs text-red-400 font-semibold">Bulk Action Warning</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-white/70 leading-relaxed">
+                Are you sure you want to remove ALL {eventList.length} events from Google Cloud Firestore? This will completely empty the event calendar archive.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setClearingAll(false)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmClearAll}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/40 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Clear All
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

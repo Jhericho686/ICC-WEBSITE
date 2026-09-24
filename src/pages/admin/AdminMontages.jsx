@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Video, Play, ExternalLink, Upload, Film, Image as ImageIcon } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
-import { uploadFile } from '../../lib/firebase';
+import { insertRow, updateRow, deleteRow, uploadMediaFile } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 
 const fallbackVideos = [
@@ -30,6 +29,7 @@ const fallbackVideos = [
 export default function AdminMontages() {
   const [search, setSearch] = useState('');
   const [editingVideo, setEditingVideo] = useState(null);
+  const [deletingVideo, setDeletingVideo] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
@@ -68,28 +68,22 @@ export default function AdminMontages() {
     if (!file) return;
 
     setUploading(true);
-    addToast('Uploading video to Firebase Cloud Storage...', 'info');
+    addToast('🎬 Uploading video to Cloud Storage...', 'info');
 
     try {
-      const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const res = await uploadFile('videos', path, file);
-      if (res && res.publicUrl) {
+      const url = await uploadMediaFile('videos', file);
+      if (url) {
         setEditingVideo((prev) => ({
           ...prev,
-          youtube_url: res.publicUrl,
+          youtube_url: url,
         }));
-        addToast('🎬 Video uploaded to cloud storage successfully!', 'success');
+        addToast('🎬 Video reel uploaded & ready!', 'success');
       } else {
-        throw new Error('Upload completed without public URL');
+        throw new Error('Upload completed without URL');
       }
     } catch (err) {
-      console.warn('Cloud storage upload fallback to local preview URL:', err);
-      const blobUrl = URL.createObjectURL(file);
-      setEditingVideo((prev) => ({
-        ...prev,
-        youtube_url: blobUrl,
-      }));
-      addToast('🎬 Video file loaded for preview!', 'info');
+      console.warn('Video upload error:', err);
+      addToast('Error uploading video: ' + err.message, 'error');
     } finally {
       setUploading(false);
     }
@@ -100,27 +94,29 @@ export default function AdminMontages() {
     if (!file) return;
 
     try {
-      const path = `${Date.now()}_thumb_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const res = await uploadFile('gallery', path, file);
-      if (res && res.publicUrl) {
+      const url = await uploadMediaFile('gallery', file);
+      if (url) {
         setEditingVideo((prev) => ({
           ...prev,
-          thumbnail_url: res.publicUrl,
+          thumbnail_url: url,
         }));
-        addToast('📸 Thumbnail image uploaded to cloud!', 'success');
-        return;
+        addToast('📸 Thumbnail cover loaded!', 'success');
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('Thumbnail upload error:', err);
+      addToast('Error uploading thumbnail: ' + err.message, 'error');
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setEditingVideo((prev) => ({
-        ...prev,
-        thumbnail_url: event.target.result,
-      }));
-      addToast('📸 Thumbnail image loaded!', 'success');
-    };
-    reader.readAsDataURL(file);
+  const handleToggleFeatured = async (item) => {
+    try {
+      const nextFeatured = !item.featured;
+      await updateRow('videos', item.id, { featured: nextFeatured });
+      addToast(`🎬 "${item.title}" ${nextFeatured ? 'featured on Homepage' : 'removed from Featured'}.`, 'success');
+      refetch();
+    } catch (err) {
+      addToast('Error updating featured status: ' + err.message, 'error');
+    }
   };
 
   const handleSave = async (e) => {
@@ -158,20 +154,27 @@ export default function AdminMontages() {
       }
     } catch (err) {
       console.warn('Cloud save error:', err);
-      addToast('Video saved.', 'info');
+      addToast('Error saving video: ' + err.message, 'error');
     }
 
     refetch();
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (item) => {
+    setDeletingVideo(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingVideo) return;
     try {
-      await deleteRow('videos', id);
-      addToast('Video deleted from Cloud Firestore.', 'info');
+      await deleteRow('videos', deletingVideo.id);
+      addToast(`🗑️ "${deletingVideo.title}" removed from Cloud Firestore.`, 'info');
+      setDeletingVideo(null);
+      refetch();
     } catch (err) {
       console.warn('Cloud delete error:', err);
+      addToast('Error deleting video: ' + err.message, 'error');
     }
-    refetch();
   };
 
   return (
@@ -236,11 +239,21 @@ export default function AdminMontages() {
               <span className="absolute top-3.5 left-3.5 px-3.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/30">
                 {item.category}
               </span>
-              {item.featured && (
-                <span className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg">
-                  Featured
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={() => handleToggleFeatured(item)}
+                className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
+                style={{
+                  background: item.featured
+                    ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                    : 'rgba(0, 0, 0, 0.75)',
+                  color: item.featured ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                  border: item.featured ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.2)',
+                }}
+                title="Click to toggle featured status on homepage"
+              >
+                {item.featured ? '★ Featured' : '☆ Not Featured'}
+              </button>
             </div>
 
             <div className="p-6 flex-1 flex flex-col justify-between gap-5">
@@ -272,7 +285,7 @@ export default function AdminMontages() {
                     <Edit2 className="w-4 h-4 text-amber-400" strokeWidth={2.4} /> Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => handleDelete(item)}
                     className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold transition-colors cursor-pointer"
                     title="Delete Video"
                   >
@@ -460,6 +473,69 @@ export default function AdminMontages() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE VIDEO CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {deletingVideo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingVideo(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Delete Video?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+                <h4 className="text-sm font-bold text-white">{deletingVideo.title}</h4>
+                <p className="text-xs text-amber-400 font-medium">{deletingVideo.category} • {deletingVideo.duration}</p>
+                <p className="text-[11px] text-white/50 font-mono truncate">{deletingVideo.youtube_url}</p>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This montage will be permanently removed from Google Cloud Firestore and will no longer show on the public media player.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingVideo(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Video
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

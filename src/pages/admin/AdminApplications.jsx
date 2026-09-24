@@ -27,6 +27,7 @@ export default function AdminApplications() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [search, setSearch] = useState('');
   const [activeModalApp, setActiveModalApp] = useState(null);
+  const [deletingApp, setDeletingApp] = useState(null);
   const { addToast } = useToast();
 
   const { data: dbApps, refetch } = useSupabaseQuery('applications', {
@@ -95,13 +96,24 @@ export default function AdminApplications() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (app) => {
+    setDeletingApp(app);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingApp) return;
     try {
-      await deleteRow('applications', id);
-    } catch (err) {}
-    addToast('Application deleted from cloud.', 'info');
-    setActiveModalApp(null);
-    refetch();
+      await deleteRow('applications', deletingApp.id);
+      addToast(`🗑️ Application for "${deletingApp.name}" deleted from Cloud Firestore.`, 'info');
+      setDeletingApp(null);
+      if (activeModalApp && activeModalApp.id === deletingApp.id) {
+        setActiveModalApp(null);
+      }
+      refetch();
+    } catch (err) {
+      console.warn('Delete application error:', err);
+      addToast('Error deleting application: ' + err.message, 'error');
+    }
   };
 
   return (
@@ -246,7 +258,7 @@ export default function AdminApplications() {
                         <XCircle className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(app.id)}
+                        onClick={() => handleDelete(app)}
                         className="p-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/35 text-red-400 border border-red-500/40 transition-colors cursor-pointer"
                         title="Delete Application"
                       >
@@ -362,13 +374,19 @@ export default function AdminApplications() {
 
               <div className="pt-4 border-t border-[var(--color-border)] flex items-center justify-between flex-wrap gap-3">
                 <button
-                  onClick={() => handleDelete(activeModalApp.id)}
+                  onClick={() => handleDelete(activeModalApp)}
                   className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete
                 </button>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center flex-wrap gap-3">
+                  <button
+                    onClick={() => handleStatusUpdate(activeModalApp.id, 'rejected')}
+                    className="px-4 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" /> Reject Candidate
+                  </button>
                   <button
                     onClick={() => handlePromoteCandidateToRoster(activeModalApp, 'New Member')}
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-extrabold text-xs shadow-md shadow-amber-500/20 hover:brightness-110 transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -382,6 +400,69 @@ export default function AdminApplications() {
                     <CheckCircle className="w-4 h-4" /> Approve Candidate
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE CANDIDATE MODAL */}
+      <AnimatePresence>
+        {deletingApp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingApp(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Remove Application?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+                <h4 className="text-sm font-bold text-white">{deletingApp.name}</h4>
+                <p className="text-xs text-amber-400 font-mono font-semibold">IGN: {deletingApp.in_game_name}</p>
+                <p className="text-[11px] text-white/50">Car: {deletingApp.primary_car || 'CPM Spec'}</p>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This candidate submission will be permanently deleted from Cloud Firestore.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingApp(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Application
+                </button>
               </div>
             </motion.div>
           </motion.div>

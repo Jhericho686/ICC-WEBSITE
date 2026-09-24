@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Image as ImageIcon, Camera } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
+import { insertRow, updateRow, deleteRow, uploadMediaFile } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 
 const fallbackPhotos = [
@@ -83,7 +83,9 @@ const fallbackPhotos = [
 export default function AdminGallery() {
   const [search, setSearch] = useState('');
   const [editingPhoto, setEditingPhoto] = useState(null);
+  const [deletingPhoto, setDeletingPhoto] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { addToast } = useToast();
 
   const { data: dbGallery, refetch } = useSupabaseQuery('gallery', {
@@ -114,32 +116,78 @@ export default function AdminGallery() {
     setIsModalOpen(true);
   };
 
+  const handleImageFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    addToast('📸 Uploading photo to Cloud Storage...', 'info');
+    try {
+      const url = await uploadMediaFile('gallery', file);
+      if (url) {
+        setEditingPhoto((prev) => ({ ...prev, image_url: url }));
+        addToast('📸 Photo uploaded & processed successfully!', 'success');
+      }
+    } catch (err) {
+      console.warn('Gallery upload error:', err);
+      addToast('Error uploading photo: ' + err.message, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleToggleFeatured = async (photo) => {
+    try {
+      const nextFeatured = !photo.featured;
+      await updateRow('gallery', photo.id, { featured: nextFeatured });
+      addToast(`★ "${photo.title}" ${nextFeatured ? 'featured on Homepage' : 'removed from Featured'}.`, 'success');
+      refetch();
+    } catch (err) {
+      addToast('Error updating featured status: ' + err.message, 'error');
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!editingPhoto.title?.trim()) {
+      addToast('Please provide a photo title.', 'warning');
+      return;
+    }
+    if (!editingPhoto.image_url?.trim()) {
+      addToast('Please upload an image or provide an image URL.', 'warning');
+      return;
+    }
+
     try {
-      if (editingPhoto.id) {
+      if (editingPhoto.id && !String(editingPhoto.id).startsWith('g_')) {
         await updateRow('gallery', editingPhoto.id, editingPhoto);
-        addToast('Photo details updated.', 'success');
+        addToast('✅ Photograph updated in Cloud Firestore.', 'success');
       } else {
         await insertRow('gallery', editingPhoto);
-        addToast('New photograph added to gallery.', 'success');
+        addToast('🎉 New photograph published to Cloud Firestore.', 'success');
       }
       setIsModalOpen(false);
       refetch();
     } catch (e) {
-      addToast('Saved locally.', 'info');
-      setIsModalOpen(false);
+      console.warn('Gallery save error:', e);
+      addToast('Error saving photo: ' + e.message, 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete photo from gallery?')) return;
+  const handleDelete = (item) => {
+    setDeletingPhoto(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingPhoto) return;
     try {
-      await deleteRow('gallery', id);
-      addToast('Photo deleted.', 'info');
+      await deleteRow('gallery', deletingPhoto.id);
+      addToast(`🗑️ "${deletingPhoto.title}" removed from Cloud Firestore.`, 'info');
+      setDeletingPhoto(null);
       refetch();
     } catch (e) {
-      addToast('Deleted locally.', 'info');
+      console.warn('Gallery delete error:', e);
+      addToast('Error deleting photo: ' + e.message, 'error');
     }
   };
 
@@ -197,11 +245,21 @@ export default function AdminGallery() {
               <span className="absolute top-3.5 left-3.5 px-3.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/30">
                 {item.category}
               </span>
-              {item.featured && (
-                <span className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg">
-                  Featured
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={() => handleToggleFeatured(item)}
+                className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
+                style={{
+                  background: item.featured
+                    ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                    : 'rgba(0, 0, 0, 0.75)',
+                  color: item.featured ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                  border: item.featured ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.2)',
+                }}
+                title="Click to toggle featured status on homepage"
+              >
+                {item.featured ? '★ Featured' : '☆ Not Featured'}
+              </button>
             </div>
 
             <div className="p-6 flex-1 flex flex-col justify-between gap-5">
@@ -224,7 +282,7 @@ export default function AdminGallery() {
                   <Edit2 className="w-4 h-4 text-amber-400" strokeWidth={2.4} /> Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() => handleDelete(item)}
                   className="py-3 px-4 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   title="Delete Photo"
                 >
@@ -289,22 +347,13 @@ export default function AdminGallery() {
                   <div className="mb-2">
                     <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-black/40 border border-dashed border-[var(--color-accent)]/50 hover:border-[var(--color-accent)] text-white text-xs font-bold cursor-pointer transition-colors">
                       <Camera className="w-4 h-4 text-[var(--color-accent)]" />
-                      <span>Choose Photo from Device / Camera</span>
+                      <span>{isUploading ? 'Uploading Image...' : 'Choose Photo from Device / Camera'}</span>
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={isUploading}
                         className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              setEditingPhoto((prev) => ({ ...prev, image_url: evt.target.result }));
-                              addToast('Photo loaded from mobile device!', 'success');
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
+                        onChange={handleImageFileUpload}
                       />
                     </label>
                   </div>
@@ -400,6 +449,75 @@ export default function AdminGallery() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {deletingPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingPhoto(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Remove Photo?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 flex items-center gap-3">
+                <img
+                  src={deletingPhoto.image_url}
+                  alt={deletingPhoto.title}
+                  className="w-14 h-14 rounded-xl object-cover border border-white/10 shrink-0"
+                />
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-white truncate">{deletingPhoto.title}</h4>
+                  <p className="text-xs text-amber-400 font-medium mt-0.5">{deletingPhoto.category} • {deletingPhoto.author || 'ICC'}</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This photograph will be permanently removed from Google Cloud Firestore and will no longer appear on public gallery and homepage carousels.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingPhoto(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Photo
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

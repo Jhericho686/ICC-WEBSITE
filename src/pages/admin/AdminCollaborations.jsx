@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Handshake, CheckCircle, XCircle, Trash2, Eye, Calendar, Users, MessageSquare, Plus, Edit2, Upload, Star, Trophy } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { updateRow, deleteRow, insertRow } from '../../lib/supabase';
+import { updateRow, deleteRow, insertRow, uploadMediaFile } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 
 export default function AdminCollaborations() {
   const [activeTab, setActiveTab] = useState('past'); // 'past' | 'inquiries'
   const [activeModal, setActiveModal] = useState(null);
+  const [deletingPastCollab, setDeletingPastCollab] = useState(null);
+  const [deletingInquiry, setDeletingInquiry] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [editingPastCollab, setEditingPastCollab] = useState(null);
   const [isPastModalOpen, setIsPastModalOpen] = useState(false);
@@ -53,16 +56,23 @@ export default function AdminCollaborations() {
     }
   };
 
-  const handleDeleteInquiry = async (id) => {
-    if (!confirm('Delete collaboration request?')) return;
+  const handleDeleteInquiry = (item) => {
+    setDeletingInquiry(item);
+  };
+
+  const handleConfirmDeleteInquiry = async () => {
+    if (!deletingInquiry) return;
     try {
-      await deleteRow('collaboration_requests', id);
-      addToast('Request deleted.', 'info');
-      setActiveModal(null);
+      await deleteRow('collaboration_requests', deletingInquiry.id);
+      addToast(`🗑️ Proposal from "${deletingInquiry.clan_or_org}" deleted.`, 'info');
+      if (activeModal && activeModal.id === deletingInquiry.id) {
+        setActiveModal(null);
+      }
+      setDeletingInquiry(null);
       refetch();
     } catch (e) {
-      addToast('Deleted locally.', 'info');
-      setActiveModal(null);
+      console.warn('Delete proposal error:', e);
+      addToast('Error deleting proposal: ' + e.message, 'error');
     }
   };
 
@@ -83,16 +93,35 @@ export default function AdminCollaborations() {
     setIsPastModalOpen(true);
   };
 
-  const handleImageFileUpload = (e) => {
+  const handleImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      setEditingPastCollab((prev) => ({ ...prev, image: evt.target.result }));
-      addToast('📸 Cover image loaded!', 'success');
-    };
-    reader.readAsDataURL(file);
+    setIsUploading(true);
+    addToast('📸 Uploading partnership cover image...', 'info');
+    try {
+      const url = await uploadMediaFile('collaborations', file);
+      if (url) {
+        setEditingPastCollab((prev) => ({ ...prev, image: url }));
+        addToast('📸 Cover image attached successfully!', 'success');
+      }
+    } catch (err) {
+      console.warn('Collaboration image upload error:', err);
+      addToast('Error uploading image: ' + err.message, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleToggleFeaturedPast = async (collab) => {
+    try {
+      const nextFeatured = !collab.featured;
+      await updateRow('past_collaborations', collab.id, { featured: nextFeatured });
+      addToast(`★ "${collab.clan}" partnership ${nextFeatured ? 'featured on Homepage' : 'removed from Featured'}.`, 'success');
+      refetchPast();
+    } catch (err) {
+      addToast('Error updating featured status: ' + err.message, 'error');
+    }
   };
 
   const handleSavePastCollab = async (e) => {
@@ -103,28 +132,36 @@ export default function AdminCollaborations() {
     }
 
     try {
-      if (editingPastCollab.id && !editingPastCollab.id.startsWith('pc_')) {
+      if (editingPastCollab.id && !String(editingPastCollab.id).startsWith('pc_')) {
         await updateRow('past_collaborations', editingPastCollab.id, editingPastCollab);
       } else {
         await insertRow('past_collaborations', editingPastCollab);
       }
-      addToast('🤝 Past collaboration saved to cloud!', 'success');
+      addToast('🤝 Past collaboration saved to Cloud Firestore!', 'success');
     } catch (err) {
-      addToast('Collaboration saved.', 'info');
+      console.warn('Cloud save past collab error:', err);
+      addToast('Error saving collaboration: ' + err.message, 'error');
     }
 
     setIsPastModalOpen(false);
     refetchPast();
   };
 
-  const handleDeletePastCollab = async (id) => {
+  const handleDeletePastCollab = (collab) => {
+    setDeletingPastCollab(collab);
+  };
+
+  const handleConfirmDeletePastCollab = async () => {
+    if (!deletingPastCollab) return;
     try {
-      await deleteRow('past_collaborations', id);
-      addToast('Past collaboration deleted from Cloud Firestore.', 'info');
+      await deleteRow('past_collaborations', deletingPastCollab.id);
+      addToast(`🗑️ Partnership with "${deletingPastCollab.clan}" removed.`, 'info');
+      setDeletingPastCollab(null);
+      refetchPast();
     } catch (err) {
       console.warn('Cloud delete error:', err);
+      addToast('Error removing collaboration: ' + err.message, 'error');
     }
-    refetchPast();
   };
 
   return (
@@ -209,11 +246,20 @@ export default function AdminCollaborations() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                {collab.featured && (
-                  <span className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500 text-black shadow">
-                    <Star className="w-3 h-3 fill-black" /> Featured
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleToggleFeaturedPast(collab)}
+                  className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold shadow cursor-pointer transition-transform hover:scale-105"
+                  style={{
+                    background: collab.featured ? '#f59e0b' : 'rgba(0,0,0,0.7)',
+                    color: collab.featured ? '#000000' : 'rgba(255,255,255,0.7)',
+                    border: collab.featured ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.2)',
+                  }}
+                  title="Click to toggle featured partnership"
+                >
+                  <Star className={`w-3 h-3 ${collab.featured ? 'fill-black' : ''}`} />
+                  {collab.featured ? 'Featured' : 'Not Featured'}
+                </button>
 
                 <span className="absolute bottom-3 left-3 text-xs font-black text-white bg-black/70 backdrop-blur px-2.5 py-1 rounded-lg border border-white/10">
                   {collab.clan}
@@ -244,7 +290,7 @@ export default function AdminCollaborations() {
                       <Edit2 className="w-4 h-4 text-amber-400" />
                     </button>
                     <button
-                      onClick={() => handleDeletePastCollab(collab.id)}
+                      onClick={() => handleDeletePastCollab(collab)}
                       className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                       title="Delete Past Collaboration"
                     >
@@ -339,10 +385,17 @@ export default function AdminCollaborations() {
                           </button>
                           <button
                             onClick={() => handleStatus(item.id, 'declined')}
-                            className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors"
+                            className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                             title="Decline"
                           >
                             <XCircle className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInquiry(item)}
+                            className="p-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/35 text-red-400 border border-red-500/40 transition-colors cursor-pointer"
+                            title="Delete Request"
+                          >
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -537,8 +590,8 @@ export default function AdminCollaborations() {
 
               <div className="pt-4 border-t border-[var(--color-border)] flex items-center justify-between">
                 <button
-                  onClick={() => handleDeleteInquiry(activeModal.id)}
-                  className="px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-xs font-semibold flex items-center gap-1.5"
+                  onClick={() => handleDeleteInquiry(activeModal)}
+                  className="px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/20"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete Proposal
                 </button>
@@ -546,17 +599,143 @@ export default function AdminCollaborations() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleStatus(activeModal.id, 'declined')}
-                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold"
+                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold cursor-pointer"
                   >
                     Decline
                   </button>
                   <button
                     onClick={() => handleStatus(activeModal.id, 'accepted')}
-                    className="px-5 py-2 rounded-xl bg-emerald-500 text-black font-bold text-xs"
+                    className="px-5 py-2 rounded-xl bg-emerald-500 text-black font-bold text-xs cursor-pointer hover:bg-emerald-400"
                   >
                     Accept Proposal
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE PAST COLLAB MODAL */}
+      <AnimatePresence>
+        {deletingPastCollab && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingPastCollab(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Remove Collaboration?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+                <h4 className="text-sm font-bold text-white">{deletingPastCollab.clan}</h4>
+                <p className="text-xs text-amber-400 font-medium">{deletingPastCollab.type} • {deletingPastCollab.date}</p>
+                <p className="text-[11px] text-white/50">{deletingPastCollab.highlight}</p>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This partnership will be permanently deleted from Cloud Firestore and will no longer show on the collaborations page.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingPastCollab(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeletePastCollab}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Partnership
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DEDICATED IN-APP DELETE INQUIRY MODAL */}
+      <AnimatePresence>
+        {deletingInquiry && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setDeletingInquiry(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#16120e] border border-red-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+              style={{
+                boxShadow: '0 20px 60px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-white">
+                    Delete Proposal?
+                  </h3>
+                  <p className="text-xs text-red-400/80 font-medium">Permanent Cloud Deletion</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+                <h4 className="text-sm font-bold text-white">{deletingInquiry.clan_or_org}</h4>
+                <p className="text-xs text-amber-400 font-medium">Contact: {deletingInquiry.contact_person}</p>
+                <p className="text-[11px] text-white/50">{deletingInquiry.proposal_type}</p>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                This proposal inquiry will be permanently deleted from Cloud Firestore.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingInquiry(null)}
+                  className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteInquiry}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete Proposal
+                </button>
               </div>
             </motion.div>
           </motion.div>

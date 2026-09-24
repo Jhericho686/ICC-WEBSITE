@@ -170,10 +170,23 @@ export async function fetchOne(collectionName, id) {
   return { id: docSnap.id, ...docSnap.data() };
 }
 
+function sanitizeData(data) {
+  if (!data || typeof data !== 'object') return {};
+  const clean = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'id') continue;
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
 export async function insertRow(collectionName, data) {
+  const sanitized = sanitizeData(data);
   const payload = {
-    ...data,
-    created_at: data.created_at || new Date().toISOString(),
+    ...sanitized,
+    created_at: sanitized.created_at || new Date().toISOString(),
   };
 
   try {
@@ -181,26 +194,25 @@ export async function insertRow(collectionName, data) {
     return { id: docRef.id, ...payload };
   } catch (error) {
     console.warn(`Firestore insertRow failed for ${collectionName}:`, error.message);
-    return { id: 'FB-' + Date.now().toString().slice(-6), ...payload };
+    throw error;
   }
 }
 
 export async function updateRow(collectionName, id, updates) {
+  if (!id) throw new Error(`Missing document ID for updateRow in ${collectionName}`);
+  const sanitized = sanitizeData(updates);
   const docRef = doc(db, collectionName, id);
   await updateDoc(docRef, {
-    ...updates,
+    ...sanitized,
     updated_at: new Date().toISOString(),
   });
-  return { id, ...updates };
+  return { id, ...sanitized };
 }
 
 export async function deleteRow(collectionName, id) {
-  try {
-    if (!id) return;
-    await deleteDoc(doc(db, collectionName, id));
-  } catch (error) {
-    console.warn(`Firestore deleteRow warning for ${collectionName}/${id}:`, error.message);
-  }
+  if (!id) return;
+  const docRef = doc(db, collectionName, id);
+  await deleteDoc(docRef);
 }
 
 export async function countRows(collectionName, filter = {}) {
@@ -225,6 +237,61 @@ export async function uploadFile(bucket, path, file) {
   return { path, publicUrl: downloadUrl };
 }
 
+export async function uploadMediaFile(bucket, file) {
+  if (!file) return null;
+  const sanitizedName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, '_') : 'upload';
+  const path = `${Date.now()}_${sanitizedName}`;
+
+  // Try Firebase Storage first
+  try {
+    const res = await uploadFile(bucket, path, file);
+    if (res && res.publicUrl) {
+      return res.publicUrl;
+    }
+  } catch (err) {
+    console.warn(`Firebase Storage upload notice for ${bucket}/${path}:`, err.message);
+  }
+
+  // If file is an image, compress via canvas to <= 900px so it is compact (<80KB) and never breaks Firestore
+  if (file.type && file.type.startsWith('image/')) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 900;
+          let w = img.width;
+          let h = img.height;
+          if (w > h && w > maxDim) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else if (h > maxDim) {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // For video or other blob media
+  if (typeof window !== 'undefined' && window.URL && file instanceof Blob) {
+    return URL.createObjectURL(file);
+  }
+  return '';
+}
+
 export async function getPublicUrl(bucket, path) {
   try {
     const fileRef = storageRef(storage, `${bucket}/${path}`);
@@ -244,3 +311,4 @@ export async function logActivity(adminId, action, targetType, targetId, descrip
     description,
   });
 }
+

@@ -122,7 +122,14 @@ export default function HierarchyPage() {
             const Icon = tier.icon;
             // Filter real members if available, or use defaults
             const currentMembers = dbMembers && dbMembers.length > 0
-              ? dbMembers.filter(m => m.role?.toLowerCase() === tier.role.toLowerCase())
+              ? dbMembers.filter(m => {
+                  const r = (m.role || '').toLowerCase().trim();
+                  const tr = tier.role.toLowerCase().trim();
+                  if (tr.includes('new') || r.includes('new')) {
+                    return tr.includes('new') && r.includes('new');
+                  }
+                  return r === tr;
+                })
               : tier.members;
 
             return (
@@ -179,7 +186,7 @@ export default function HierarchyPage() {
                                 {m.real_name && <span className="text-xs font-normal text-white/60">({m.real_name})</span>}
                               </div>
                               <div className="text-[11px] text-white/50 font-mono mt-0.5 truncate">
-                                {m.ign}
+                                {m.in_game_name || m.ign}
                               </div>
                             </div>
                           </div>

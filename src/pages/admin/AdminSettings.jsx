@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Save, Sparkles, Palette, Share2, Globe, Shield } from 'lucide-react';
+import { Camera, Image as ImageIcon, Settings, Save, Sparkles, Palette, Share2, Globe, Shield } from 'lucide-react';
 import { useSiteSettings, useToast } from '../../lib/contexts';
-import { updateRow, insertRow, fetchAll } from '../../lib/supabase';
+import { updateRow, insertRow, fetchAll, uploadMediaFile } from '../../lib/supabase';
 
 const colorPresets = [
   { name: 'ICC Flame (Default)', color: '#ff6b00' },
@@ -25,11 +25,15 @@ export default function AdminSettings() {
     description: settings.description || '',
     accent_color: settings.accent_color || '#ff6b00',
     logo_url: settings.logo_url || '',
+    hero_image_url: settings.hero_image_url || '',
     facebook_url: settings.facebook_url || '',
     tiktok_url: settings.tiktok_url || '',
     discord_url: settings.discord_url || '',
     youtube_url: settings.youtube_url || '',
   });
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -40,6 +44,7 @@ export default function AdminSettings() {
         description: settings.description || '',
         accent_color: settings.accent_color || '#ff6b00',
         logo_url: settings.logo_url || '',
+        hero_image_url: settings.hero_image_url || '',
         facebook_url: settings.facebook_url || '',
         tiktok_url: settings.tiktok_url || '',
         discord_url: settings.discord_url || '',
@@ -59,6 +64,46 @@ export default function AdminSettings() {
   const handleColorPreset = (color) => {
     setForm((prev) => ({ ...prev, accent_color: color }));
     document.documentElement.style.setProperty('--color-accent', color);
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    addToast('📸 Uploading clan logo...', 'info');
+    try {
+      const url = await uploadMediaFile('branding', file);
+      if (url) {
+        setForm((prev) => ({ ...prev, logo_url: url }));
+        addToast('📸 Clan emblem uploaded & updated!', 'success');
+      }
+    } catch (err) {
+      console.warn('Logo upload error:', err);
+      addToast('Error uploading logo: ' + err.message, 'error');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleHeroUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingHero(true);
+    addToast('📸 Uploading hero banner...', 'info');
+    try {
+      const url = await uploadMediaFile('branding', file);
+      if (url) {
+        setForm((prev) => ({ ...prev, hero_image_url: url }));
+        addToast('📸 Hero banner uploaded & updated!', 'success');
+      }
+    } catch (err) {
+      console.warn('Hero upload error:', err);
+      addToast('Error uploading banner: ' + err.message, 'error');
+    } finally {
+      setUploadingHero(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -160,6 +205,76 @@ export default function AdminSettings() {
                 value={form.description}
                 onChange={handleChange}
                 className="w-full px-5 py-4 rounded-2xl bg-black/60 border border-white/15 text-sm sm:text-base text-white focus:outline-none focus:border-[var(--color-accent)] resize-none transition-colors"
+              />
+            </div>
+
+            {/* Official Clan Emblem / Logo */}
+            <div>
+              <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/80 mb-2">
+                Official Clan Emblem / Logo
+              </label>
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-16 h-16 rounded-2xl bg-black/60 border border-white/15 p-2 flex items-center justify-center shrink-0">
+                  <img
+                    src={form.logo_url || '/icc-logo-transparent.png'}
+                    alt="Logo Preview"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+                <label className="flex-1 flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-black/40 border border-dashed border-amber-500/40 hover:border-amber-400 text-white text-xs font-bold cursor-pointer transition-colors">
+                  <Camera className="w-4 h-4 text-amber-400" />
+                  <span>{uploadingLogo ? 'Uploading Logo...' : 'Upload Logo from Device'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingLogo}
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                </label>
+              </div>
+              <input
+                type="text"
+                name="logo_url"
+                value={form.logo_url}
+                onChange={handleChange}
+                placeholder="https://... or upload above"
+                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none font-mono"
+              />
+            </div>
+
+            {/* Homepage Hero Cover Banner */}
+            <div>
+              <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/80 mb-2">
+                Homepage Hero Cover Banner
+              </label>
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-24 h-16 rounded-2xl bg-black/60 border border-white/15 overflow-hidden shrink-0">
+                  <img
+                    src={form.hero_image_url || '/gallery/icc-meet-grand-gathering.png'}
+                    alt="Hero Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <label className="flex-1 flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-black/40 border border-dashed border-amber-500/40 hover:border-amber-400 text-white text-xs font-bold cursor-pointer transition-colors">
+                  <ImageIcon className="w-4 h-4 text-amber-400" />
+                  <span>{uploadingHero ? 'Uploading Banner...' : 'Upload Banner from Device'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingHero}
+                    className="hidden"
+                    onChange={handleHeroUpload}
+                  />
+                </label>
+              </div>
+              <input
+                type="text"
+                name="hero_image_url"
+                value={form.hero_image_url}
+                onChange={handleChange}
+                placeholder="https://... or upload above"
+                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none font-mono"
               />
             </div>
           </div>

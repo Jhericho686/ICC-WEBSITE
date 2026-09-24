@@ -26,6 +26,9 @@ function MemberCard({ member, index }) {
   const [ref, inView] = useInView();
   const config = roleConfig[member?.role] || DEFAULT_CONFIG;
   const Icon = config.icon || User;
+  const displayName = member.name || member.display_name || member.in_game_name || 'Pilot';
+  const avatarUrl = member.avatar_url || member.profile_image_url;
+  const subText = member.in_game_name || member.cpm_username || (member.real_name ? `(${member.real_name})` : '');
 
   return (
     <motion.div
@@ -33,7 +36,7 @@ function MemberCard({ member, index }) {
       initial={{ opacity: 0, y: 20 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, delay: index * 0.05 }}
-      className="group relative flex flex-col items-center text-center"
+      className="group relative flex flex-col items-center text-center max-w-[150px]"
     >
       {/* Avatar */}
       <div className="relative mb-3">
@@ -41,11 +44,11 @@ function MemberCard({ member, index }) {
           className="w-20 h-20 rounded-full border-2 overflow-hidden bg-[var(--color-surface-lighter)]"
           style={{ borderColor: config?.color || '#FF7A00' }}
         >
-          {member.profile_image_url ? (
-            <img src={member.profile_image_url} alt={member.display_name} className="w-full h-full object-cover" />
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-[var(--color-muted)]">
-              {(member.display_name || member.cpm_username || '?').charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
@@ -58,10 +61,10 @@ function MemberCard({ member, index }) {
       </div>
 
       {/* Info */}
-      <h4 className="text-white font-heading font-bold text-sm">{member.display_name || member.cpm_username}</h4>
-      <p className="text-xs font-medium mt-0.5" style={{ color: config?.color || '#FF7A00' }}>{member.role}</p>
-      {member.cpm_username && member.display_name && (
-        <p className="text-[var(--color-muted)] text-xs mt-0.5">@{member.cpm_username}</p>
+      <h4 className="text-white font-heading font-bold text-sm truncate w-full">{displayName}</h4>
+      <p className="text-xs font-medium mt-0.5" style={{ color: config?.color || '#FF7A00' }}>{member.role || 'Member'}</p>
+      {subText && (
+        <p className="text-[var(--color-muted)] text-[11px] font-mono mt-0.5 truncate w-full">{subText}</p>
       )}
     </motion.div>
   );
