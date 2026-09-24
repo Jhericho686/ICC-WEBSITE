@@ -103,7 +103,11 @@ export default function EventsPage() {
     : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
 
   const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
-  const eventList = rawList.filter((e) => !deletedIds.includes(e.id));
+  const eventList = rawList.filter((e) =>
+    !deletedIds.includes(String(e.id)) &&
+    !deletedIds.includes(e.id) &&
+    !deletedIds.includes(e.title)
+  );
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();

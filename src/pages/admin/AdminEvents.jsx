@@ -43,7 +43,11 @@ export default function AdminEvents() {
     : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
 
   const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
-  const eventList = rawList.filter((e) => !deletedIds.includes(e.id));
+  const eventList = rawList.filter((e) =>
+    !deletedIds.includes(String(e.id)) &&
+    !deletedIds.includes(e.id) &&
+    !deletedIds.includes(e.title)
+  );
 
   const filtered = eventList.filter((e) => {
     const q = search.toLowerCase();
@@ -142,9 +146,12 @@ export default function AdminEvents() {
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (item) => {
+    const targetId = typeof item === 'object' ? item.id : item;
+    const targetTitle = typeof item === 'object' ? item.title : '';
+
     setDeletedIds((prev) => {
-      const updated = [...prev, id];
+      const updated = Array.from(new Set([...prev, String(targetId), targetId, targetTitle])).filter(Boolean);
       try {
         localStorage.setItem('icc_deleted_events', JSON.stringify(updated));
       } catch (err) {}
@@ -152,7 +159,7 @@ export default function AdminEvents() {
     });
 
     setLocalEvents((prev) => {
-      const updated = prev.filter((e) => e.id !== id);
+      const updated = prev.filter((e) => String(e.id) !== String(targetId) && e.title !== targetTitle);
       try {
         localStorage.setItem('icc_custom_events', JSON.stringify(updated));
       } catch (err) {}
@@ -160,7 +167,7 @@ export default function AdminEvents() {
     });
 
     addToast('Event deleted.', 'info');
-    deleteRow('events', id).catch(() => {});
+    deleteRow('events', targetId).catch(() => {});
   };
 
   const handleClearAllEvents = () => {
@@ -308,7 +315,7 @@ export default function AdminEvents() {
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDelete(item)}
                           className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors"
                           title="Delete Event"
                         >

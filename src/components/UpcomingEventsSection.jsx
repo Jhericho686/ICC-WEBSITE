@@ -88,7 +88,11 @@ export default function UpcomingEventsSection() {
     : (events && events.length > 0 ? events : fallbackEvents);
 
   const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
-  const displayEvents = rawList.filter((e) => !deletedIds.includes(e.id));
+  const displayEvents = rawList.filter((e) =>
+    !deletedIds.includes(String(e.id)) &&
+    !deletedIds.includes(e.id) &&
+    !deletedIds.includes(e.title)
+  );
 
   return (
     <section id="events" className="py-28 relative overflow-hidden">

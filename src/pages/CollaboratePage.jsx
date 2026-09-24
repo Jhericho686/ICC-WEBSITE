@@ -5,43 +5,39 @@ import { insertRow } from '../lib/supabase';
 import { useToast } from '../lib/contexts';
 import SectionHeader from '../components/SectionHeader';
 
-const pastCollabs = [
+export const defaultPastCollabs = [
   {
-    id: 1,
+    id: 'pc_1',
     clan: 'VELOCITY MOTORSPORTS',
     type: 'Joint Car Meet & Cruise',
     date: 'Aug 2026',
-    participants: '40+ Drivers',
     image: '/gallery/icc-meet-grand-gathering.png',
     highlight: 'Largest multi-clan cruise event on Mountain Pass Server',
     featured: true,
   },
   {
-    id: 2,
+    id: 'pc_2',
     clan: 'APEX DRIFT COLLECTIVE',
     type: 'Inter-Clan Drift Battle',
     date: 'Jul 2026',
-    participants: '25 Drivers',
     image: '/gallery/icc-meet-drift-sunset.png',
     highlight: 'Official Tandem Drift Championship – ICC secured 1st place',
     featured: true,
   },
   {
-    id: 3,
+    id: 'pc_3',
     clan: 'CPM CONTENT STUDIO',
     type: 'TikTok / YouTube Video Shoot',
     date: 'Jun 2026',
-    participants: '15 Drivers',
     image: '/gallery/icc-meet-parking-showcase.png',
     highlight: 'Cinematic livery showcase video reaching 500K+ views',
     featured: false,
   },
   {
-    id: 4,
+    id: 'pc_4',
     clan: 'STREET KINGS ALLIANCE',
     type: 'Clan Alliance / Partnership',
     date: 'May 2026',
-    participants: '60+ Drivers',
     image: '/gallery/icc-meet-bridge-lineup.png',
     highlight: 'Cross-clan drag wars event at Airport Strip',
     featured: false,
@@ -52,6 +48,15 @@ export default function CollaboratePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState(null);
   const { addToast } = useToast();
+
+  const [pastCollabList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_past_collabs');
+      return saved ? JSON.parse(saved) : defaultPastCollabs;
+    } catch (err) {
+      return defaultPastCollabs;
+    }
+  });
 
   const [formData, setFormData] = useState({
     clan_or_org: '',
@@ -128,12 +133,12 @@ export default function CollaboratePage() {
               Past Collaborations
             </h2>
             <span className="ml-auto text-xs text-[var(--color-muted)] border border-[var(--color-border)] px-3 py-1 rounded-full">
-              {pastCollabs.length} Events
+              {pastCollabList.length} Events
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
-            {pastCollabs.map((collab, idx) => (
+            {pastCollabList.map((collab, idx) => (
               <motion.div
                 key={collab.id}
                 initial={{ opacity: 0, y: 16 }}
