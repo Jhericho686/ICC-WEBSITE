@@ -9,18 +9,23 @@ import { fallbackMembers } from '../pages/admin/AdminMembers';
 const roleConfig = {
   'Owner': { icon: Crown, color: '#FFD700', order: 1 },
   'Co-Owner': { icon: Crown, color: '#C0C0C0', order: 2 },
-  'Head Admin': { icon: Shield, color: '#FF6B00', order: 3 },
-  'Admin': { icon: Shield, color: '#FF8533', order: 4 },
-  'Moderator': { icon: Shield, color: '#3B82F6', order: 5 },
-  'Elite Member': { icon: Star, color: '#A855F7', order: 6 },
-  'Member': { icon: User, color: '#22C55E', order: 7 },
-  'Trial Member': { icon: User, color: '#6B7280', order: 8 },
+  'President': { icon: Shield, color: '#EF4444', order: 3 },
+  'Vice President': { icon: Shield, color: '#A855F7', order: 4 },
+  'Head Admin': { icon: Shield, color: '#FF6B00', order: 5 },
+  'Admin': { icon: Shield, color: '#FF8533', order: 6 },
+  'Moderator': { icon: Shield, color: '#3B82F6', order: 7 },
+  'Elite Member': { icon: Star, color: '#A855F7', order: 8 },
+  'Member': { icon: User, color: '#22C55E', order: 9 },
+  'New Member': { icon: User, color: '#10B981', order: 10 },
+  'Trial Member': { icon: User, color: '#6B7280', order: 11 },
 };
+
+const DEFAULT_CONFIG = { icon: User, color: '#FF7A00', order: 99 };
 
 function MemberCard({ member, index }) {
   const [ref, inView] = useInView();
-  const config = roleConfig[member.role] || roleConfig['Member'];
-  const Icon = config.icon;
+  const config = roleConfig[member?.role] || DEFAULT_CONFIG;
+  const Icon = config.icon || User;
 
   return (
     <motion.div
@@ -103,7 +108,7 @@ export default function HierarchySection({ preview = false }) {
           <div className="space-y-12">
             {displayRoles.map((role, roleIndex) => {
               if (!grouped[role]) return null;
-              const config = roleConfig[role];
+              const config = roleConfig[role] || DEFAULT_CONFIG;
               return (
                 <div key={role}>
                   {/* Role Title */}
