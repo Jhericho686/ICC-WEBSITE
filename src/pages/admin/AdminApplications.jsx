@@ -29,11 +29,31 @@ export default function AdminApplications() {
   const [activeModalApp, setActiveModalApp] = useState(null);
   const { addToast } = useToast();
 
+  const [deletedAppIds, setDeletedAppIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_deleted_applications');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
+  const [localApps, setLocalApps] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_applications');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbApps, refetch } = useSupabaseQuery('applications', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const appList = dbApps && dbApps.length > 0 ? dbApps : fallbackApps;
+  const baseList = dbApps && dbApps.length > 0 ? dbApps : fallbackApps;
+  const rawList = [...localApps, ...baseList.filter((b) => !localApps.some((l) => l.id === b.id))];
+  const appList = rawList.filter((a) => !deletedAppIds.includes(a.id));
 
   const filtered = appList.filter((a) => {
     const matchesStatus =
@@ -100,17 +120,26 @@ export default function AdminApplications() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this application?')) return;
-    try {
-      await deleteRow('applications', id);
-      addToast('Application deleted.', 'info');
-      setActiveModalApp(null);
-      refetch();
-    } catch (err) {
-      addToast('Deleted locally.', 'info');
-      setActiveModalApp(null);
-    }
+  const handleDelete = (id) => {
+    setDeletedAppIds((prev) => {
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem('icc_deleted_applications', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    setLocalApps((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem('icc_custom_applications', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    addToast('Application deleted.', 'info');
+    setActiveModalApp(null);
+    deleteRow('applications', id).catch(() => {});
   };
 
   return (
@@ -253,6 +282,13 @@ export default function AdminApplications() {
                         title="Reject Candidate"
                       >
                         <XCircle className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(app.id)}
+                        className="p-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/35 text-red-400 border border-red-500/40 transition-colors cursor-pointer"
+                        title="Delete Application"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

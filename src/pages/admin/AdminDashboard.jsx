@@ -16,14 +16,39 @@ import {
 import { countRows, fetchAll } from '../../lib/supabase';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    applications: 3,
-    pendingApps: 2,
-    collaborations: 4,
-    members: 22,
-    videos: 2,
-    gallery: 8,
-    events: 3,
+  const [stats, setStats] = useState(() => {
+    let customVids = [];
+    let customPhotos = [];
+    let customEvts = [];
+    let deletedEvts = [];
+    let isCleared = false;
+    let customApps = [];
+    let deletedApps = [];
+
+    try {
+      customVids = JSON.parse(localStorage.getItem('icc_custom_videos') || '[]');
+      customPhotos = JSON.parse(localStorage.getItem('icc_custom_photos') || '[]');
+      customEvts = JSON.parse(localStorage.getItem('icc_custom_events') || '[]');
+      deletedEvts = JSON.parse(localStorage.getItem('icc_deleted_events') || '[]');
+      isCleared = localStorage.getItem('icc_events_cleared') === 'true';
+      customApps = JSON.parse(localStorage.getItem('icc_custom_applications') || '[]');
+      deletedApps = JSON.parse(localStorage.getItem('icc_deleted_applications') || '[]');
+    } catch (err) {}
+
+    const totalVideos = customVids.length + 2;
+    const totalPhotos = customPhotos.length + 8;
+    const totalEvents = isCleared ? customEvts.length : Math.max(0, customEvts.length + 3 - deletedEvts.length);
+    const totalApps = Math.max(0, customApps.length - deletedApps.length);
+
+    return {
+      applications: totalApps,
+      pendingApps: totalApps,
+      collaborations: 4,
+      members: 22,
+      videos: totalVideos,
+      gallery: totalPhotos,
+      events: totalEvents,
+    };
   });
 
   const [recentApplications, setRecentApplications] = useState([]);
