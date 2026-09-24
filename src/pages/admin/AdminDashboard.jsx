@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { countRows, fetchAll } from '../../lib/supabase';
+import { defaultPastCollabs } from '../CollaboratePage';
 
 function safeArrayParse(key) {
   try {
@@ -54,7 +55,10 @@ export default function AdminDashboard() {
         ]);
 
         const totalApps = apps ? apps.length : 0;
-        const totalPastCols = pastCols && pastCols.length > 0 ? pastCols.length : 1;
+        const deletedPastIds = safeArrayParse('icc_deleted_past_collabs');
+        const rawPast = pastCols && pastCols.length > 0 ? pastCols : defaultPastCollabs;
+        const visiblePastCols = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
+        const totalPastCols = visiblePastCols.length;
         const totalReqCols = reqCols || 0;
         const totalCols = totalPastCols + totalReqCols;
         const totalMems = mems && mems.length > 0 ? mems.length : 22;

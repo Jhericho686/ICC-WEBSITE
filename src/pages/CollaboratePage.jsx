@@ -51,11 +51,14 @@ export default function CollaboratePage() {
   const [submittedId, setSubmittedId] = useState(null);
   const { addToast } = useToast();
 
+  const [deletedPastIds] = useState(() => safeArrayParse('icc_deleted_past_collabs'));
+
   const { data: dbPastCollabs } = useSupabaseQuery('past_collaborations', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const pastCollabList = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
+  const rawPast = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
+  const pastCollabList = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
 
   const [formData, setFormData] = useState({
     clan_or_org: '',

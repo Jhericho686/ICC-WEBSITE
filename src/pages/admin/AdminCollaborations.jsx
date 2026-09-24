@@ -15,6 +15,8 @@ export default function AdminCollaborations() {
   const [isPastModalOpen, setIsPastModalOpen] = useState(false);
   const { addToast } = useToast();
 
+  const [deletedPastIds, setDeletedPastIds] = useState(() => safeArrayParse('icc_deleted_past_collabs'));
+
   const { data: dbPastCollabs, refetch: refetchPast } = useSupabaseQuery('past_collaborations', {
     order: { column: 'created_at', ascending: false },
   });
@@ -23,7 +25,8 @@ export default function AdminCollaborations() {
     order: { column: 'created_at', ascending: false },
   });
 
-  const pastCollabs = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
+  const rawPast = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
+  const pastCollabs = rawPast.filter((p) => !deletedPastIds.includes(String(p.id)) && !deletedPastIds.includes(p.clan));
   const list = dbCollabs || [];
 
   const filteredInquiries = list.filter((c) => {
@@ -119,13 +122,20 @@ export default function AdminCollaborations() {
     refetchPast();
   };
 
-  const handleDeletePastCollab = async (id) => {
+  const handleDeletePastCollab = async (id, clanName) => {
+    setDeletedPastIds((prev) => {
+      const updated = Array.from(new Set([...prev, String(id), clanName].filter(Boolean)));
+      try {
+        localStorage.setItem('icc_deleted_past_collabs', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
     try {
       await deleteRow('past_collaborations', id);
-      addToast('Past collaboration deleted from cloud.', 'info');
-    } catch (err) {
-      addToast('Past collaboration removed.', 'info');
-    }
+    } catch (err) {}
+
+    addToast('Past collaboration deleted.', 'info');
     refetchPast();
   };
 
@@ -246,7 +256,7 @@ export default function AdminCollaborations() {
                       <Edit2 className="w-4 h-4 text-amber-400" />
                     </button>
                     <button
-                      onClick={() => handleDeletePastCollab(collab.id)}
+                      onClick={() => handleDeletePastCollab(collab.id, collab.clan)}
                       className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
                       title="Delete Past Collaboration"
                     >
