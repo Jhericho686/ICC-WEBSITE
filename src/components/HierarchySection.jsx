@@ -39,7 +39,7 @@ function MemberCard({ member, index }) {
       <div className="relative mb-3">
         <div
           className="w-20 h-20 rounded-full border-2 overflow-hidden bg-[var(--color-surface-lighter)]"
-          style={{ borderColor: config.color }}
+          style={{ borderColor: config?.color || '#FF7A00' }}
         >
           {member.profile_image_url ? (
             <img src={member.profile_image_url} alt={member.display_name} className="w-full h-full object-cover" />
@@ -51,7 +51,7 @@ function MemberCard({ member, index }) {
         </div>
         <div
           className="absolute -bottom-1 left-1/2 -translate-x-1/2 p-1 rounded-full"
-          style={{ backgroundColor: config.color }}
+          style={{ backgroundColor: config?.color || '#FF7A00' }}
         >
           <Icon size={12} className="text-white" />
         </div>
@@ -59,7 +59,7 @@ function MemberCard({ member, index }) {
 
       {/* Info */}
       <h4 className="text-white font-heading font-bold text-sm">{member.display_name || member.cpm_username}</h4>
-      <p className="text-xs font-medium mt-0.5" style={{ color: config.color }}>{member.role}</p>
+      <p className="text-xs font-medium mt-0.5" style={{ color: config?.color || '#FF7A00' }}>{member.role}</p>
       {member.cpm_username && member.display_name && (
         <p className="text-[var(--color-muted)] text-xs mt-0.5">@{member.cpm_username}</p>
       )}
@@ -113,14 +113,14 @@ export default function HierarchySection({ preview = false }) {
                 <div key={role}>
                   {/* Role Title */}
                   <div className="flex items-center justify-center gap-3 mb-6">
-                    <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${config.color}40)` }} />
+                    <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${config?.color || '#FF7A00'}40)` }} />
                     <span
                       className="text-xs font-bold tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border"
-                      style={{ color: config.color, borderColor: `${config.color}30` }}
+                      style={{ color: config?.color || '#FF7A00', borderColor: `${config?.color || '#FF7A00'}30` }}
                     >
                       {role}
                     </span>
-                    <div className="h-px flex-1 max-w-[100px]" style={{ backgroundImage: `linear-gradient(to left, transparent, ${config.color}40)` }} />
+                    <div className="h-px flex-1 max-w-[100px]" style={{ backgroundImage: `linear-gradient(to left, transparent, ${config?.color || '#FF7A00'}40)` }} />
                   </div>
 
                   {/* Connecting line */}

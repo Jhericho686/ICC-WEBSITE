@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Video, Play, ExternalLink, Upload, Film, Image as ImageIcon } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
+import { uploadFile } from '../../lib/firebase';
 import { useToast } from '../../lib/contexts';
 import { safeArrayParse } from '../../lib/storage';
 
@@ -66,36 +67,54 @@ export default function AdminMontages() {
     setIsModalOpen(true);
   };
 
-  const handleVideoFileUpload = (e) => {
+  const handleVideoFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 100 * 1024 * 1024) {
-      addToast('Video file size is very large. Recommended size is under 50MB for smooth playback.', 'info');
-    }
 
     setUploading(true);
-    addToast('Processing video upload...', 'info');
+    addToast('Uploading video to Firebase Cloud Storage...', 'info');
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    try {
+      const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const res = await uploadFile('videos', path, file);
+      if (res && res.publicUrl) {
+        setEditingVideo((prev) => ({
+          ...prev,
+          youtube_url: res.publicUrl,
+        }));
+        addToast('🎬 Video uploaded to cloud storage successfully!', 'success');
+      } else {
+        throw new Error('Upload completed without public URL');
+      }
+    } catch (err) {
+      console.warn('Cloud storage upload fallback to local preview URL:', err);
+      const blobUrl = URL.createObjectURL(file);
       setEditingVideo((prev) => ({
         ...prev,
-        youtube_url: event.target.result,
+        youtube_url: blobUrl,
       }));
+      addToast('🎬 Video file loaded for preview!', 'info');
+    } finally {
       setUploading(false);
-      addToast('🎬 Video file loaded and ready!', 'success');
-    };
-    reader.onerror = () => {
-      setUploading(false);
-      addToast('Could not process video file.', 'error');
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const handleThumbnailFileUpload = (e) => {
+  const handleThumbnailFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    try {
+      const path = `${Date.now()}_thumb_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const res = await uploadFile('gallery', path, file);
+      if (res && res.publicUrl) {
+        setEditingVideo((prev) => ({
+          ...prev,
+          thumbnail_url: res.publicUrl,
+        }));
+        addToast('📸 Thumbnail image uploaded to cloud!', 'success');
+        return;
+      }
+    } catch (err) {}
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -137,9 +156,16 @@ export default function AdminMontages() {
         updated = [savedItem, ...prev];
       }
       try {
-        localStorage.setItem('icc_custom_videos', JSON.stringify(updated));
+        // Strip large dataURLs from localStorage to prevent QuotaExceededError
+        const safeForStorage = updated.map((item) => {
+          if (item.youtube_url && item.youtube_url.startsWith('data:')) {
+            return { ...item, youtube_url: '/videos/icc-montage-1.mp4' };
+          }
+          return item;
+        });
+        localStorage.setItem('icc_custom_videos', JSON.stringify(safeForStorage));
       } catch (err) {
-        console.warn('LocalStorage limit for video data:', err);
+        console.warn('LocalStorage notice for video data:', err);
       }
       return updated;
     });
@@ -152,6 +178,7 @@ export default function AdminMontages() {
     } else {
       insertRow('videos', savedItem).catch(() => {});
     }
+    refetch();
   };
 
   const handleDelete = (id) => {
