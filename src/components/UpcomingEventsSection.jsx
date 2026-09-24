@@ -61,7 +61,7 @@ export default function UpcomingEventsSection() {
     limit: 3,
   });
 
-  const displayEvents = events && events.length > 0 ? events : fallbackEvents;
+  const displayEvents = events !== null && events !== undefined ? events : fallbackEvents;
 
   return (
     <section id="events" className="py-28 relative overflow-hidden">

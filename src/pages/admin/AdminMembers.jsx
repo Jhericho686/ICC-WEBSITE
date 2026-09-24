@@ -348,7 +348,7 @@ export default function AdminMembers() {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = dbMembers && dbMembers.length > 0 ? dbMembers : fallbackMembers;
+  const memberList = dbMembers !== null && dbMembers !== undefined ? dbMembers : fallbackMembers;
 
   const filtered = memberList.filter((m) => {
     const q = search.toLowerCase();

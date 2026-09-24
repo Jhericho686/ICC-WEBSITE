@@ -33,7 +33,7 @@ export default function EventsPage() {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },
   });
 
-  const eventList = dbEvents || fallbackEvents;
+  const eventList = dbEvents !== null && dbEvents !== undefined ? dbEvents : fallbackEvents;
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();
