@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Handshake, Send, CheckCircle, Star, Calendar, Users, Trophy } from 'lucide-react';
+import { useSupabaseQuery } from '../lib/hooks';
 import { insertRow } from '../lib/supabase';
 import { useToast } from '../lib/contexts';
 import { safeArrayParse } from '../lib/storage';
@@ -50,10 +51,11 @@ export default function CollaboratePage() {
   const [submittedId, setSubmittedId] = useState(null);
   const { addToast } = useToast();
 
-  const [pastCollabList] = useState(() => {
-    const saved = safeArrayParse('icc_past_collabs');
-    return saved.length > 0 ? saved : defaultPastCollabs;
+  const { data: dbPastCollabs } = useSupabaseQuery('past_collaborations', {
+    order: { column: 'created_at', ascending: false },
   });
+
+  const pastCollabList = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
 
   const [formData, setFormData] = useState({
     clan_or_org: '',

@@ -27,29 +27,14 @@ function safeArrayParse(key) {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(() => {
-    const customVids = safeArrayParse('icc_custom_videos');
-    const customPhotos = safeArrayParse('icc_custom_photos');
-    const customEvts = safeArrayParse('icc_custom_events');
-    const deletedEvts = safeArrayParse('icc_deleted_events');
-    const isCleared = localStorage.getItem('icc_events_cleared') === 'true';
-    const customApps = safeArrayParse('icc_custom_applications');
-    const deletedApps = safeArrayParse('icc_deleted_applications');
-
-    const totalVideos = customVids.length + 2;
-    const totalPhotos = customPhotos.length + 8;
-    const totalEvents = isCleared ? customEvts.length : Math.max(0, customEvts.length + 3 - deletedEvts.length);
-    const totalApps = Math.max(0, customApps.length - deletedApps.length);
-
-    return {
-      applications: totalApps,
-      pendingApps: totalApps,
-      collaborations: 4,
-      members: 22,
-      videos: totalVideos,
-      gallery: totalPhotos,
-      events: totalEvents,
-    };
+  const [stats, setStats] = useState({
+    applications: 0,
+    pendingApps: 0,
+    collaborations: 1,
+    members: 22,
+    videos: 3,
+    gallery: 8,
+    events: 0,
   });
 
   const [recentApplications, setRecentApplications] = useState([]);
@@ -57,28 +42,40 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const [appCount, colCount, memCount, vidCount, galCount, evtCount] = await Promise.allSettled([
-          countRows('applications'),
+        const [apps, pendingApps, pastCols, reqCols, mems, vids, gals, evts] = await Promise.all([
+          fetchAll('applications'),
+          countRows('applications', { status: 'pending' }),
+          fetchAll('past_collaborations'),
           countRows('collaboration_requests'),
-          countRows('members'),
-          countRows('videos'),
-          countRows('gallery'),
-          countRows('events'),
+          fetchAll('members'),
+          fetchAll('videos'),
+          fetchAll('gallery'),
+          fetchAll('events'),
         ]);
 
-        setStats((prev) => ({
-          ...prev,
-          applications: appCount.status === 'fulfilled' && appCount.value > 0 ? appCount.value : prev.applications,
-          collaborations: colCount.status === 'fulfilled' && colCount.value > 0 ? colCount.value : prev.collaborations,
-          members: memCount.status === 'fulfilled' && memCount.value > 0 ? memCount.value : prev.members,
-          videos: vidCount.status === 'fulfilled' && vidCount.value > 0 ? vidCount.value : prev.videos,
-          gallery: galCount.status === 'fulfilled' && galCount.value > 0 ? galCount.value : prev.gallery,
-          events: evtCount.status === 'fulfilled' && evtCount.value > 0 ? evtCount.value : prev.events,
-        }));
+        const totalApps = apps ? apps.length : 0;
+        const totalPastCols = pastCols && pastCols.length > 0 ? pastCols.length : 1;
+        const totalReqCols = reqCols || 0;
+        const totalCols = totalPastCols + totalReqCols;
+        const totalMems = mems && mems.length > 0 ? mems.length : 22;
+        const totalVids = vids && vids.length > 0 ? vids.length : 3;
+        const totalGals = gals && gals.length > 0 ? gals.length : 8;
+        const totalEvts = evts ? evts.length : 0;
 
-        const recent = await fetchAll('applications', { limit: 5, order: { column: 'created_at', ascending: false } });
-        if (recent && recent.length > 0) {
-          setRecentApplications(recent);
+        setStats({
+          applications: totalApps,
+          pendingApps: pendingApps || totalApps,
+          collaborations: totalCols,
+          members: totalMems,
+          videos: totalVids,
+          gallery: totalGals,
+          events: totalEvts,
+        });
+
+        if (apps && apps.length > 0) {
+          setRecentApplications(apps.slice(0, 5));
+        } else {
+          setRecentApplications([]);
         }
       } catch (err) {
         console.warn('Could not load live dashboard counters:', err);

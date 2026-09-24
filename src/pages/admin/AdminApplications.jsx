@@ -30,25 +30,11 @@ export default function AdminApplications() {
   const [activeModalApp, setActiveModalApp] = useState(null);
   const { addToast } = useToast();
 
-  const [deletedAppIds, setDeletedAppIds] = useState(() => {
-    const parsed = safeArrayParse('icc_deleted_applications');
-    return Array.from(new Set([...parsed, 'Jhericho Rapiz', 'NIO']));
-  });
-
-  const [localApps, setLocalApps] = useState(() => safeArrayParse('icc_custom_applications'));
-
   const { data: dbApps, refetch } = useSupabaseQuery('applications', {
     order: { column: 'created_at', ascending: false },
   });
 
-  const baseList = dbApps && dbApps.length > 0 ? dbApps : fallbackApps;
-  const rawList = [...localApps, ...baseList.filter((b) => !localApps.some((l) => l.id === b.id))];
-  const appList = rawList.filter((a) =>
-    !deletedAppIds.includes(String(a.id)) &&
-    !deletedAppIds.includes(a.name) &&
-    !deletedAppIds.includes(a.in_game_name) &&
-    a.name?.toLowerCase() !== 'jhericho rapiz'
-  );
+  const appList = dbApps || [];
 
   const filtered = appList.filter((a) => {
     const matchesStatus =
@@ -71,9 +57,7 @@ export default function AdminApplications() {
       }
       refetch();
     } catch (err) {
-      addToast('Status updated locally.', 'info');
-      const found = appList.find((x) => x.id === id);
-      if (found) found.status = newStatus;
+      addToast('Status updated.', 'info');
       if (activeModalApp) setActiveModalApp((prev) => ({ ...prev, status: newStatus }));
     }
   };
@@ -108,33 +92,17 @@ export default function AdminApplications() {
       }
       refetch();
     } catch (err) {
-      addToast(`Promoted ${app.name} to Roster locally!`, 'success');
-      if (activeModalApp) {
-        setActiveModalApp((prev) => (prev ? { ...prev, status: 'approved', promoted_to_roster: true } : null));
-      }
+      addToast(`Promoted ${app.name} to Roster.`, 'success');
     }
   };
 
-  const handleDelete = (id) => {
-    setDeletedAppIds((prev) => {
-      const updated = [...prev, id];
-      try {
-        localStorage.setItem('icc_deleted_applications', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
-    setLocalApps((prev) => {
-      const updated = prev.filter((a) => a.id !== id);
-      try {
-        localStorage.setItem('icc_custom_applications', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-
-    addToast('Application deleted.', 'info');
+  const handleDelete = async (id) => {
+    try {
+      await deleteRow('applications', id);
+    } catch (err) {}
+    addToast('Application deleted from cloud.', 'info');
     setActiveModalApp(null);
-    deleteRow('applications', id).catch(() => {});
+    refetch();
   };
 
   return (

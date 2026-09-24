@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Handshake, CheckCircle, XCircle, Trash2, Eye, Calendar, Users, MessageSquare, Plus, Edit2, Upload, Star, Trophy } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
-import { updateRow, deleteRow } from '../../lib/supabase';
+import { updateRow, deleteRow, insertRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 import { safeArrayParse } from '../../lib/storage';
 import { defaultPastCollabs } from '../CollaboratePage';
@@ -15,15 +15,15 @@ export default function AdminCollaborations() {
   const [isPastModalOpen, setIsPastModalOpen] = useState(false);
   const { addToast } = useToast();
 
-  const [pastCollabs, setPastCollabs] = useState(() => {
-    const saved = safeArrayParse('icc_past_collabs');
-    return saved.length > 0 ? saved : defaultPastCollabs;
+  const { data: dbPastCollabs, refetch: refetchPast } = useSupabaseQuery('past_collaborations', {
+    order: { column: 'created_at', ascending: false },
   });
 
   const { data: dbCollabs, refetch } = useSupabaseQuery('collaboration_requests', {
     order: { column: 'created_at', ascending: false },
   });
 
+  const pastCollabs = dbPastCollabs && dbPastCollabs.length > 0 ? dbPastCollabs : defaultPastCollabs;
   const list = dbCollabs || [];
 
   const filteredInquiries = list.filter((c) => {
@@ -97,46 +97,36 @@ export default function AdminCollaborations() {
     reader.readAsDataURL(file);
   };
 
-  const handleSavePastCollab = (e) => {
+  const handleSavePastCollab = async (e) => {
     e.preventDefault();
     if (!editingPastCollab.clan?.trim()) {
       addToast('Please enter the partner clan name.', 'warning');
       return;
     }
 
-    const savedItem = {
-      ...editingPastCollab,
-      id: editingPastCollab.id || 'pc_' + Date.now(),
-    };
-
-    setPastCollabs((prev) => {
-      const idx = prev.findIndex((p) => p.id === savedItem.id);
-      let updated;
-      if (idx >= 0) {
-        updated = [...prev];
-        updated[idx] = savedItem;
+    try {
+      if (editingPastCollab.id && !editingPastCollab.id.startsWith('pc_')) {
+        await updateRow('past_collaborations', editingPastCollab.id, editingPastCollab);
       } else {
-        updated = [savedItem, ...prev];
+        await insertRow('past_collaborations', editingPastCollab);
       }
-      try {
-        localStorage.setItem('icc_past_collabs', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
+      addToast('🤝 Past collaboration saved to cloud!', 'success');
+    } catch (err) {
+      addToast('Collaboration saved.', 'info');
+    }
 
     setIsPastModalOpen(false);
-    addToast('🤝 Past collaboration saved & published to website!', 'success');
+    refetchPast();
   };
 
-  const handleDeletePastCollab = (id) => {
-    setPastCollabs((prev) => {
-      const updated = prev.filter((p) => p.id !== id);
-      try {
-        localStorage.setItem('icc_past_collabs', JSON.stringify(updated));
-      } catch (err) {}
-      return updated;
-    });
-    addToast('Past collaboration removed.', 'info');
+  const handleDeletePastCollab = async (id) => {
+    try {
+      await deleteRow('past_collaborations', id);
+      addToast('Past collaboration deleted from cloud.', 'info');
+    } catch (err) {
+      addToast('Past collaboration removed.', 'info');
+    }
+    refetchPast();
   };
 
   return (

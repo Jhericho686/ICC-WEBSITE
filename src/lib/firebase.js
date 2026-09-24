@@ -195,7 +195,12 @@ export async function updateRow(collectionName, id, updates) {
 }
 
 export async function deleteRow(collectionName, id) {
-  await deleteDoc(doc(db, collectionName, id));
+  try {
+    if (!id) return;
+    await deleteDoc(doc(db, collectionName, id));
+  } catch (error) {
+    console.warn(`Firestore deleteRow warning for ${collectionName}/${id}:`, error.message);
+  }
 }
 
 export async function countRows(collectionName, filter = {}) {
