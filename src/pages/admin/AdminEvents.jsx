@@ -12,11 +12,28 @@ export default function AdminEvents() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToast } = useToast();
 
+  const [isCleared, setIsCleared] = useState(() => {
+    return localStorage.getItem('icc_events_cleared') === 'true';
+  });
+
+  const [localEvents, setLocalEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbEvents, refetch } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: false },
   });
 
-  const eventList = dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents;
+  const baseList = isCleared
+    ? []
+    : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
+
+  const eventList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
 
   const filtered = eventList.filter((e) => {
     const q = search.toLowerCase();
@@ -28,9 +45,9 @@ export default function AdminEvents() {
       title: '',
       event_date: new Date().toISOString().slice(0, 16),
       location: 'City 1 - Marina Docks (Server ICC-MAIN)',
-      category: 'Car Meet',
+      category: 'CAR MEET',
       host: 'ICC Council',
-      requirements: '',
+      requirements: 'Clean build, static/air stance',
       description: '',
       status: 'past',
       image_url: '',
@@ -72,47 +89,72 @@ export default function AdminEvents() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
-    try {
-      if (editingEvent.id) {
-        await updateRow('events', editingEvent.id, editingEvent);
-        addToast('Event updated.', 'success');
+    if (!editingEvent.title?.trim()) {
+      addToast('Please enter an event title.', 'warning');
+      return;
+    }
+
+    const isEdit = !!editingEvent.id;
+    const savedItem = {
+      ...editingEvent,
+      id: editingEvent.id || 'e_user_' + Date.now(),
+      category: editingEvent.category || 'CAR MEET',
+      event_date: editingEvent.event_date || new Date().toISOString(),
+    };
+
+    setIsCleared(false);
+    localStorage.removeItem('icc_events_cleared');
+
+    setLocalEvents((prev) => {
+      const idx = prev.findIndex((ev) => ev.id === savedItem.id);
+      let updated;
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = savedItem;
       } else {
-        await insertRow('events', editingEvent);
-        addToast('New event saved to calendar.', 'success');
+        updated = [savedItem, ...prev];
       }
-      setIsModalOpen(false);
-      refetch();
-    } catch (e) {
-      addToast('Saved locally.', 'info');
-      setIsModalOpen(false);
+      try {
+        localStorage.setItem('icc_custom_events', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    setIsModalOpen(false);
+    addToast(isEdit ? '📅 Event updated successfully!' : '📅 New event added to calendar!', 'success');
+
+    if (isEdit) {
+      updateRow('events', editingEvent.id, savedItem).catch(() => {});
+    } else {
+      insertRow('events', savedItem).catch(() => {});
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete event?')) return;
-    try {
-      await deleteRow('events', id);
-      addToast('Event deleted.', 'info');
-      refetch();
-    } catch (e) {
-      addToast('Deleted locally.', 'info');
-    }
+  const handleDelete = (id) => {
+    setLocalEvents((prev) => {
+      const updated = prev.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem('icc_custom_events', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    addToast('Event deleted.', 'info');
+    deleteRow('events', id).catch(() => {});
   };
 
-  const handleClearAllEvents = async () => {
-    if (!confirm('Are you sure you want to clear all existing events? You can then add your previous events.')) return;
-    try {
-      if (dbEvents && dbEvents.length > 0) {
-        for (const evt of dbEvents) {
-          await deleteRow('events', evt.id);
-        }
+  const handleClearAllEvents = () => {
+    setIsCleared(true);
+    setLocalEvents([]);
+    localStorage.setItem('icc_events_cleared', 'true');
+    localStorage.setItem('icc_custom_events', '[]');
+    addToast('All events cleared! You can now add your past events.', 'info');
+    if (dbEvents && dbEvents.length > 0) {
+      for (const evt of dbEvents) {
+        deleteRow('events', evt.id).catch(() => {});
       }
-      addToast('All events cleared! Add your past events below.', 'success');
-      refetch();
-    } catch (err) {
-      addToast('Events cleared locally.', 'info');
     }
   };
 

@@ -26,11 +26,7 @@ export default function AdminDashboard() {
     events: 3,
   });
 
-  const [recentApplications, setRecentApplications] = useState([
-    { id: '1', name: 'Alex M.', in_game_name: 'Apex_Ghost', driving_style: 'Drift & Tandem', created_at: new Date().toISOString(), status: 'pending' },
-    { id: '2', name: 'Ryosuke T.', in_game_name: 'FC_Takahashi', driving_style: 'Mountain Touge', created_at: new Date(Date.now() - 3600000 * 5).toISOString(), status: 'pending' },
-    { id: '3', name: 'Marcus K.', in_game_name: 'Viper_Speed', driving_style: 'Drag Racing', created_at: new Date(Date.now() - 86400000).toISOString(), status: 'approved' },
-  ]);
+  const [recentApplications, setRecentApplications] = useState([]);
 
   useEffect(() => {
     async function loadStats() {

@@ -21,62 +21,7 @@ import { useSupabaseQuery } from '../../lib/hooks';
 import { updateRow, deleteRow, insertRow, logActivity } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
 
-const fallbackApps = [
-  {
-    id: 'app_1',
-    name: 'Alex Miller',
-    in_game_name: 'Apex_Ghost',
-    cpm_id: '8492019',
-    discord_handle: 'apex_ghost#4920',
-    age: 19,
-    region: 'North America',
-    driving_style: 'Drift & Tandem',
-    primary_car: 'Nissan Silvia S15 Spec-R (1695HP)',
-    horsepower: '1695HP (Max)',
-    experience_years: '2 Years',
-    device_type: 'Android (Phone)',
-    motivation: 'I love touge drift lines and want a serious team that hosts actual organized tandems instead of random chaos.',
-    weekly_hours: '15 Hours',
-    status: 'pending',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'app_2',
-    name: 'Ryosuke Takahashi',
-    in_game_name: 'FC_Takahashi',
-    cpm_id: '9283141',
-    discord_handle: 'ryosuke#1998',
-    age: 22,
-    region: 'Asia / Southeast Asia',
-    driving_style: 'Mountain Touge',
-    primary_car: 'Mazda RX-7 FC3S Twin Turbo',
-    horsepower: '900HP Street',
-    experience_years: '3+ Years Veteran',
-    device_type: 'iOS (iPhone)',
-    motivation: 'Looking for a mature clan to co-host touge battles and learn advanced tuning setups.',
-    weekly_hours: '20+ Hours',
-    status: 'pending',
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'app_3',
-    name: 'Marcus Kane',
-    in_game_name: 'Viper_Speed',
-    cpm_id: '4920183',
-    discord_handle: 'marcus_k#2201',
-    age: 20,
-    region: 'Europe',
-    driving_style: 'Drag Racing',
-    primary_car: 'Nissan GT-R R35 Drag Spec',
-    horsepower: '1695HP (Max)',
-    experience_years: '1-2 Years',
-    device_type: 'Android (Phone)',
-    motivation: 'Drag bracket specialist. Have sub-8 second quarter-mile tune and want to represent ICC in inter-clan drag wars.',
-    weekly_hours: '10-20 Hours',
-    status: 'approved',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+const fallbackApps = [];
 
 export default function AdminApplications() {
   const [filterStatus, setFilterStatus] = useState('All');

@@ -56,12 +56,29 @@ function formatTime(dateStr) {
 export default function UpcomingEventsSection() {
   const [ref, inView] = useInView();
 
+  const [isCleared] = useState(() => {
+    return localStorage.getItem('icc_events_cleared') === 'true';
+  });
+
+  const [localEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: events } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: true },
     limit: 3,
   });
 
-  const displayEvents = events !== null && events !== undefined ? events : fallbackEvents;
+  const baseList = isCleared
+    ? []
+    : (events && events.length > 0 ? events : fallbackEvents);
+
+  const displayEvents = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
 
   return (
     <section id="events" className="py-28 relative overflow-hidden">

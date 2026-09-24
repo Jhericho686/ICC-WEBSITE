@@ -72,11 +72,28 @@ function formatTime(dateStr) {
 export default function EventsPage() {
   const [activeTab, setActiveTab] = useState('past');
 
+  const [isCleared] = useState(() => {
+    return localStorage.getItem('icc_events_cleared') === 'true';
+  });
+
+  const [localEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_custom_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbEvents } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },
   });
 
-  const eventList = dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents;
+  const baseList = isCleared
+    ? []
+    : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
+
+  const eventList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();
