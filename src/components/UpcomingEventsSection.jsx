@@ -69,6 +69,15 @@ export default function UpcomingEventsSection() {
     }
   });
 
+  const [deletedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_deleted_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: events } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: true },
     limit: 3,
@@ -78,7 +87,8 @@ export default function UpcomingEventsSection() {
     ? []
     : (events && events.length > 0 ? events : fallbackEvents);
 
-  const displayEvents = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const displayEvents = rawList.filter((e) => !deletedIds.includes(e.id));
 
   return (
     <section id="events" className="py-28 relative overflow-hidden">

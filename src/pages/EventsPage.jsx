@@ -85,6 +85,15 @@ export default function EventsPage() {
     }
   });
 
+  const [deletedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_deleted_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const { data: dbEvents } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },
   });
@@ -93,7 +102,8 @@ export default function EventsPage() {
     ? []
     : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
 
-  const eventList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const eventList = rawList.filter((e) => !deletedIds.includes(e.id));
 
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();

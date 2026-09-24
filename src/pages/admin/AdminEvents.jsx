@@ -16,6 +16,15 @@ export default function AdminEvents() {
     return localStorage.getItem('icc_events_cleared') === 'true';
   });
 
+  const [deletedIds, setDeletedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('icc_deleted_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      return [];
+    }
+  });
+
   const [localEvents, setLocalEvents] = useState(() => {
     try {
       const saved = localStorage.getItem('icc_custom_events');
@@ -33,7 +42,8 @@ export default function AdminEvents() {
     ? []
     : (dbEvents && dbEvents.length > 0 ? dbEvents : fallbackEvents);
 
-  const eventList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const eventList = rawList.filter((e) => !deletedIds.includes(e.id));
 
   const filtered = eventList.filter((e) => {
     const q = search.toLowerCase();
@@ -133,6 +143,14 @@ export default function AdminEvents() {
   };
 
   const handleDelete = (id) => {
+    setDeletedIds((prev) => {
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem('icc_deleted_events', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
     setLocalEvents((prev) => {
       const updated = prev.filter((e) => e.id !== id);
       try {
