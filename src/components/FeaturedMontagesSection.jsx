@@ -28,7 +28,13 @@ const fallbackMontages = [
 
 function extractYoutubeId(url) {
   if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
+function extractGoogleDriveId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
 }
 
@@ -56,7 +62,8 @@ export default function FeaturedMontagesSection() {
         <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-14 max-w-5xl mx-auto">
           {displayMontages.map((item, idx) => {
             const ytId = extractYoutubeId(item.youtube_url);
-            const thumb = item.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : '');
+            const driveId = extractGoogleDriveId(item.youtube_url);
+            const thumb = item.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280` : ''));
 
             return (
               <motion.div
@@ -164,27 +171,49 @@ export default function FeaturedMontagesSection() {
 
               {/* Video Player */}
               <div className="relative aspect-video w-full bg-black flex items-center justify-center">
-                {extractYoutubeId(activeVideo.youtube_url || activeVideo.video_url) ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${extractYoutubeId(activeVideo.youtube_url || activeVideo.video_url)}?autoplay=1`}
-                    title={activeVideo.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full border-0"
-                  />
-                ) : (
-                  <video
-                    key={activeVideo.youtube_url || activeVideo.video_url}
-                    controls
-                    autoPlay
-                    playsInline
-                    preload="auto"
-                    className="w-full h-full object-contain"
-                  >
-                    <source src={activeVideo.youtube_url || activeVideo.video_url} type="video/mp4" />
-                    Your browser does not support HTML5 video.
-                  </video>
-                )}
+                {(() => {
+                  const mediaUrl = activeVideo.youtube_url || activeVideo.video_url;
+                  const ytId = extractYoutubeId(mediaUrl);
+                  const driveId = extractGoogleDriveId(mediaUrl);
+
+                  if (ytId) {
+                    return (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
+                        title={activeVideo.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full border-0"
+                      />
+                    );
+                  }
+
+                  if (driveId) {
+                    return (
+                      <iframe
+                        src={`https://drive.google.com/file/d/${driveId}/preview`}
+                        title={activeVideo.title}
+                        allow="autoplay; fullscreen"
+                        allowFullScreen
+                        className="w-full h-full border-0"
+                      />
+                    );
+                  }
+
+                  return (
+                    <video
+                      key={mediaUrl}
+                      controls
+                      autoPlay
+                      playsInline
+                      preload="auto"
+                      className="w-full h-full object-contain"
+                    >
+                      <source src={mediaUrl} type="video/mp4" />
+                      Your browser does not support HTML5 video.
+                    </video>
+                  );
+                })()}
               </div>
             </motion.div>
           </motion.div>

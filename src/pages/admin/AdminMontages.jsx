@@ -32,6 +32,12 @@ function extractYoutubeId(url) {
   return match ? match[1] : null;
 }
 
+function extractGoogleDriveId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
 export default function AdminMontages() {
   const [search, setSearch] = useState('');
   const [editingVideo, setEditingVideo] = useState(null);
@@ -109,12 +115,15 @@ export default function AdminMontages() {
     }
   };
 
-  const handleYoutubeUrlChange = (val) => {
+  const handleVideoUrlChange = (val) => {
     const ytId = extractYoutubeId(val);
+    const driveId = extractGoogleDriveId(val);
     setEditingVideo((prev) => {
       const next = { ...prev, youtube_url: val };
       if (ytId && (!prev.thumbnail_url || prev.thumbnail_url.includes('unsplash'))) {
         next.thumbnail_url = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
+      } else if (driveId && (!prev.thumbnail_url || prev.thumbnail_url.includes('unsplash'))) {
+        next.thumbnail_url = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280`;
       }
       return next;
     });
@@ -248,7 +257,12 @@ export default function AdminMontages() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filtered.map((item, idx) => (
+        {filtered.map((item, idx) => {
+          const ytId = extractYoutubeId(item.youtube_url);
+          const driveId = extractGoogleDriveId(item.youtube_url);
+          const thumb = item.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280` : 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&q=80'));
+
+          return (
           <div
             key={item.id || idx}
             className="rounded-3xl bg-[#14100b]/90 border border-white/10 overflow-hidden shadow-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group"
@@ -262,7 +276,7 @@ export default function AdminMontages() {
                 />
               ) : (
                 <img
-                  src={item.thumbnail_url || 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&q=80'}
+                  src={thumb}
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -326,7 +340,8 @@ export default function AdminMontages() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Modal */}
@@ -376,26 +391,29 @@ export default function AdminMontages() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/80">
-                      Video Source *
+                      Video Link (YouTube or Google Drive) *
                     </label>
                     <span className="text-[11px] text-amber-400 font-bold">
-                      YouTube Link Recommended
+                      Zero Cost · High Speed
                     </span>
                   </div>
 
-                  {/* YouTube or Web Video Link Input */}
+                  {/* YouTube or Google Drive Link Input */}
                   <div className="space-y-2 mb-3">
                     <input
                       type="text"
                       required
                       value={editingVideo.youtube_url}
-                      onChange={(e) => handleYoutubeUrlChange(e.target.value)}
-                      placeholder="Paste YouTube Link (e.g. https://youtu.be/... or https://youtube.com/shorts/...)"
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
+                      placeholder="Paste YouTube Link or Google Drive Share Link (e.g. https://drive.google.com/file/d/... or https://youtu.be/...)"
                       className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-amber-500/40 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400 font-mono placeholder:text-white/30"
                     />
-                    <p className="text-[11px] text-white/50 leading-relaxed">
-                      💡 <strong>Pro-Tip:</strong> Pasting a YouTube link streams smoothly in 1080p/4K on mobile without buffering, takes zero upload time, and never vanishes!
-                    </p>
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-white/70 space-y-1">
+                      <p className="font-semibold text-amber-300">💡 You can use your Google Drive (Google AI Pro 2TB!):</p>
+                      <p>1. Upload the video to your Google Drive.</p>
+                      <p>2. Right-click the file &rarr; <strong>Share</strong> &rarr; change General Access to <strong>"Anyone with the link"</strong>.</p>
+                      <p>3. Copy link and paste it above! It plays seamlessly on the website with 0 buffering.</p>
+                    </div>
                   </div>
 
                   {/* Direct Mobile & PC File Upload with live progress */}
@@ -418,7 +436,7 @@ export default function AdminMontages() {
                         </div>
                       )}
                       <span className="text-white/40 text-[11px] font-normal">
-                        Direct cloud file upload (Requires Firebase Cloud Storage activated)
+                        Direct cloud file upload (Requires Firebase Blaze Plan)
                       </span>
                       <input
                         type="file"
@@ -439,16 +457,23 @@ export default function AdminMontages() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/25 hover:bg-red-500/40 text-white font-bold text-xs no-underline border border-red-500/40 transition-colors"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" /> Open Firebase Storage Console to Click "Get Started"
+                          <ExternalLink className="w-3.5 h-3.5" /> Open Firebase Storage Console to Upgrade to Blaze
                         </a>
                       </div>
                     )}
 
                     {editingVideo.youtube_url && !uploadError && (
                       <div className="mt-2.5 p-3 rounded-xl bg-black/60 border border-emerald-500/30 text-xs font-mono text-emerald-400 flex items-center justify-between truncate">
-                        <span className="truncate">Active Source: {editingVideo.youtube_url}</span>
+                        <span className="truncate">
+                          Active Source:{' '}
+                          {extractGoogleDriveId(editingVideo.youtube_url)
+                            ? 'Google Drive Video (Ready)'
+                            : extractYoutubeId(editingVideo.youtube_url)
+                            ? 'YouTube Video (Ready)'
+                            : editingVideo.youtube_url}
+                        </span>
                         <span className="shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ml-2">
-                          Ready
+                          {extractGoogleDriveId(editingVideo.youtube_url) ? 'Google Drive' : extractYoutubeId(editingVideo.youtube_url) ? 'YouTube' : 'Ready'}
                         </span>
                       </div>
                     )}
