@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit2, Trash2, Video, Play, ExternalLink } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Video, Play, ExternalLink, Upload, Film, Image as ImageIcon } from 'lucide-react';
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
@@ -30,6 +30,7 @@ export default function AdminMontages() {
   const [search, setSearch] = useState('');
   const [editingVideo, setEditingVideo] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
 
   const { data: dbVideos, refetch } = useSupabaseQuery('videos', {
@@ -48,7 +49,7 @@ export default function AdminMontages() {
       title: '',
       youtube_url: '',
       thumbnail_url: '',
-      category: 'Drift',
+      category: 'Drift & Tandem',
       duration: '',
       description: '',
       featured: true,
@@ -59,6 +60,48 @@ export default function AdminMontages() {
   const openEditModal = (item) => {
     setEditingVideo({ ...item });
     setIsModalOpen(true);
+  };
+
+  const handleVideoFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 100 * 1024 * 1024) {
+      addToast('Video file size is very large. Recommended size is under 50MB for smooth playback.', 'info');
+    }
+
+    setUploading(true);
+    addToast('Processing video upload...', 'info');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setEditingVideo((prev) => ({
+        ...prev,
+        youtube_url: event.target.result,
+      }));
+      setUploading(false);
+      addToast('🎬 Video file loaded and ready!', 'success');
+    };
+    reader.onerror = () => {
+      setUploading(false);
+      addToast('Could not process video file.', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleThumbnailFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setEditingVideo((prev) => ({
+        ...prev,
+        thumbnail_url: event.target.result,
+      }));
+      addToast('📸 Thumbnail image loaded!', 'success');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async (e) => {
@@ -98,7 +141,7 @@ export default function AdminMontages() {
             Montages & Video Archive
           </h1>
           <p className="text-sm sm:text-base text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            Manage official Car Parking Multiplayer clan videos, YouTube embeds, and media reels.
+            Upload official CPM clan videos directly from your mobile/device or paste YouTube URLs. No manual folder copying needed!
           </p>
         </div>
 
@@ -106,7 +149,7 @@ export default function AdminMontages() {
           onClick={openCreateModal}
           className="px-6 py-4 rounded-2xl bg-[var(--color-accent)] text-white font-extrabold text-sm sm:text-base flex items-center gap-3 shadow-xl shadow-amber-500/30 hover:bg-[var(--color-accent-light)] transition-all shrink-0 cursor-pointer"
         >
-          <Plus className="w-5 h-5" strokeWidth={2.5} /> Add Video / Montage
+          <Plus className="w-5 h-5" strokeWidth={2.5} /> Add / Upload Video
         </button>
       </div>
 
@@ -136,11 +179,19 @@ export default function AdminMontages() {
             className="rounded-3xl bg-[#14100b]/90 border border-white/10 overflow-hidden shadow-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group"
           >
             <div className="relative aspect-video w-full bg-black/60 overflow-hidden">
-              <img
-                src={item.thumbnail_url || 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&q=80'}
-                alt={item.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+              {item.youtube_url && item.youtube_url.startsWith('data:video') ? (
+                <video
+                  src={item.youtube_url}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={item.thumbnail_url || 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&q=80'}
+                  alt={item.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              )}
               <span className="absolute top-3.5 left-3.5 px-3.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/30">
                 {item.category}
               </span>
@@ -157,7 +208,7 @@ export default function AdminMontages() {
                   {item.title}
                 </h3>
                 <p className="text-xs sm:text-sm text-white/50 mt-1 truncate font-mono">
-                  {item.youtube_url}
+                  {item.youtube_url?.slice(0, 40)}...
                 </p>
               </div>
 
@@ -208,15 +259,15 @@ export default function AdminMontages() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 sm:p-8 shadow-2xl"
+              className="w-full max-w-lg bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4 mb-6">
                 <h3 className="text-xl font-bold font-heading text-white">
-                  {editingVideo.id ? 'Edit Montage' : 'Add New Montage'}
+                  {editingVideo.id ? 'Edit Video / Montage' : 'Upload New Video'}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white"
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white cursor-pointer"
                 >
                   ✕
                 </button>
@@ -232,43 +283,48 @@ export default function AdminMontages() {
                     required
                     value={editingVideo.title}
                     onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
-                    placeholder="e.g. TOUGE DRIFT CHAMPIONSHIP"
+                    placeholder="e.g. ICC TOUGE DRIFT CHAMPIONSHIP VOL. 3"
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                    Video Source (File Upload or URL) *
+                    Video File Upload (Mobile & PC) *
                   </label>
-                  
-                  {/* Direct Mobile Video File Picker */}
+
+                  {/* Native Video File Upload */}
                   <div className="mb-2">
-                    <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-black/40 border border-dashed border-[var(--color-accent)]/50 hover:border-[var(--color-accent)] text-white text-xs font-bold cursor-pointer transition-colors">
-                      <Video className="w-4 h-4 text-[var(--color-accent)]" />
-                      <span>Choose Video File from Mobile / Device</span>
+                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-amber-500/10 border-2 border-dashed border-amber-500/50 hover:border-amber-400 text-white text-xs font-bold cursor-pointer transition-all">
+                      <Upload className="w-6 h-6 text-amber-400" />
+                      <span className="text-amber-300 font-extrabold text-sm">
+                        {uploading ? 'Processing Video...' : 'Select Video File from Mobile / Phone / PC'}
+                      </span>
+                      <span className="text-white/50 text-[11px] font-normal">
+                        Supports MP4, MOV, WEBM. No manual folder copying required!
+                      </span>
                       <input
                         type="file"
                         accept="video/*"
                         className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const url = URL.createObjectURL(file);
-                            setEditingVideo((prev) => ({ ...prev, youtube_url: url }));
-                            addToast('Video file selected from device!', 'success');
-                          }
-                        }}
+                        onChange={handleVideoFileUpload}
                       />
                     </label>
                   </div>
 
+                  {editingVideo.youtube_url && (
+                    <div className="p-3 rounded-xl bg-black/60 border border-amber-500/30 text-xs font-mono text-amber-300 truncate mb-2">
+                      Loaded Source: {editingVideo.youtube_url.slice(0, 50)}...
+                    </div>
+                  )}
+
+                  <span className="text-xs text-white/40 block mb-1">Or paste a YouTube URL / Video Link:</span>
                   <input
                     type="text"
                     required
                     value={editingVideo.youtube_url}
                     onChange={(e) => setEditingVideo({ ...editingVideo, youtube_url: e.target.value })}
-                    placeholder="https://www.youtube.com/... or choose video file above"
+                    placeholder="https://www.youtube.com/watch?v=... or choose file above"
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
                   />
                 </div>
@@ -283,23 +339,23 @@ export default function AdminMontages() {
                       onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
                     >
-                      <option value="Drift">Drift & Tandem</option>
-                      <option value="Meets">Clan Car Meet</option>
+                      <option value="Drift & Tandem">Drift & Tandem</option>
+                      <option value="Car Meet & Cruise">Clan Car Meet</option>
                       <option value="Drag Racing">Drag Racing</option>
-                      <option value="Cinematic">Cinematic Edit</option>
-                      <option value="Tutorials">Tuning Tutorial</option>
+                      <option value="Cinematic Edit">Cinematic Edit</option>
+                      <option value="Tuning Tutorial">Tuning Tutorial</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                      Duration (e.g. 01:30)
+                      Duration (e.g. 02:15)
                     </label>
                     <input
                       type="text"
                       value={editingVideo.duration || ''}
                       onChange={(e) => setEditingVideo({ ...editingVideo, duration: e.target.value })}
-                      placeholder="01:30"
+                      placeholder="02:15"
                       className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
                     />
                   </div>
@@ -307,28 +363,18 @@ export default function AdminMontages() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                    Thumbnail Image (File Upload or URL)
+                    Thumbnail Photo Upload (Mobile / PC)
                   </label>
 
-                  {/* Direct Mobile Image File Picker for Thumbnail */}
                   <div className="mb-2">
-                    <label className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-white text-white text-xs font-semibold cursor-pointer transition-colors">
-                      <span>Choose Thumbnail Photo from Mobile</span>
+                    <label className="flex items-center justify-center gap-2 p-3 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-white text-white text-xs font-semibold cursor-pointer transition-colors">
+                      <ImageIcon className="w-4 h-4 text-amber-400" />
+                      <span>Upload Thumbnail Image from Mobile / Phone</span>
                       <input
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              setEditingVideo((prev) => ({ ...prev, thumbnail_url: evt.target.result }));
-                              addToast('Thumbnail image loaded from device!', 'success');
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
+                        onChange={handleThumbnailFileUpload}
                       />
                     </label>
                   </div>
@@ -337,7 +383,7 @@ export default function AdminMontages() {
                     type="text"
                     value={editingVideo.thumbnail_url || ''}
                     onChange={(e) => setEditingVideo({ ...editingVideo, thumbnail_url: e.target.value })}
-                    placeholder="https://... or choose photo above"
+                    placeholder="https://... or upload photo above"
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
                   />
                 </div>
@@ -367,7 +413,7 @@ export default function AdminMontages() {
                     type="submit"
                     className="px-6 py-2 rounded-xl bg-[var(--color-accent)] text-white text-xs font-bold shadow-md hover:bg-[var(--color-accent-light)]"
                   >
-                    Save Video
+                    Save & Publish Video
                   </button>
                 </div>
               </form>

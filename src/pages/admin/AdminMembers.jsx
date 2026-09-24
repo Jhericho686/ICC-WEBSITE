@@ -44,12 +44,12 @@ const roleHierarchy = [
   'Owner',
 ];
 
-const fallbackMembers = [
+export const fallbackMembers = [
   // Owner & Co-Owners
   {
     id: 'm_1',
     name: 'MELLY',
-    real_name: 'Mark Joseph Tandang',
+    real_name: 'Maky Tandang',
     in_game_name: 'Owner- ICC MELLY',
     role: 'Owner',
     cpm_id: 'Founder',
@@ -60,7 +60,7 @@ const fallbackMembers = [
   {
     id: 'm_2',
     name: 'PATPAT',
-    real_name: 'Patrick Carreon',
+    real_name: 'Patpat KP',
     in_game_name: '[Co-Owner] ICC-PATPAT (2912492)',
     role: 'Co-Leader',
     cpm_id: '2912492',
@@ -71,7 +71,7 @@ const fallbackMembers = [
   {
     id: 'm_3',
     name: 'BLUEWORKS',
-    real_name: 'Christian Torrecampo Tario',
+    real_name: 'Chri S Tian',
     in_game_name: '[CO-OWNER]ICC - BLUEWORKS',
     role: 'Co-Leader',
     cpm_id: 'Co-Owner',
@@ -116,10 +116,10 @@ const fallbackMembers = [
   },
   {
     id: 'm_7',
-    name: 'JAS / CLAIRE',
-    real_name: 'Jasmine / JC Marasigan',
-    in_game_name: 'VICE- PRESIDENT ICC CLAIRE (YX606679)',
-    role: 'Vice President',
+    name: 'JAS / jeheysi',
+    real_name: 'Jc Marasigan',
+    in_game_name: 'PRESIDENT ICC jeheysi (YX606679)',
+    role: 'President',
     cpm_id: 'YX606679',
     car: 'Mazda RX-7 FD3S (YX606679)',
     hierarchy_order: 7,
@@ -127,171 +127,206 @@ const fallbackMembers = [
   },
   {
     id: 'm_8',
-    name: 'BOSS TIN',
-    real_name: 'Rolly Nacino Garcia',
-    in_game_name: 'V P -BOSS TIN• T U 6 0 6 0 6 2',
+    name: 'HIJUME',
+    real_name: 'Prince Casaway',
+    in_game_name: '[VP] (ICC-Hijume)(09252008)',
     role: 'Vice President',
-    cpm_id: 'TU606062',
-    car: 'Porsche 911 GT3 RS (TU606062)',
+    cpm_id: '09252008',
+    car: 'Nissan Silvia S15 (09252008)',
     hierarchy_order: 8,
     featured: true,
+  },
+  {
+    id: 'm_9',
+    name: 'SIR DOM',
+    real_name: 'Dominic Denuevo II',
+    in_game_name: 'VICE PRESEDENT- I SIR DOM I (BM120909)',
+    role: 'Vice President',
+    cpm_id: 'BM120909',
+    car: 'Honda Civic Type-R (BM120909)',
+    hierarchy_order: 9,
+    featured: true,
+  },
+  {
+    id: 'm_10',
+    name: 'BOSS TIN',
+    real_name: 'Rolly Nacino Garcia',
+    in_game_name: 'V P -BOSS TIN',
+    role: 'Vice President',
+    cpm_id: 'TU606062',
+    car: 'Porsche 911 GT3 RS',
+    hierarchy_order: 10,
+    featured: false,
   },
 
   // Admins
   {
-    id: 'm_9',
-    name: 'HIJUME',
-    real_name: 'Prince Casaway',
-    in_game_name: 'ICC ( ADMIN )(Hijume)(09252008)',
-    role: 'Admin',
-    cpm_id: '09252008',
-    car: 'Nissan Silvia S15 (09252008)',
-    hierarchy_order: 9,
-    featured: false,
-  },
-  {
-    id: 'm_10',
-    name: 'SIR DOM',
-    real_name: 'Dominic Denuevo II',
-    in_game_name: 'ICC - I SIR DOM I (BM120909)-ADMIN',
-    role: 'Admin',
-    cpm_id: 'BM120909',
-    car: 'Honda Civic Type-R (BM120909)',
-    hierarchy_order: 10,
-    featured: false,
-  },
-  {
     id: 'm_11',
+    name: 'YELICH / N3KN3K',
+    real_name: 'Ken Heindrich Narzoles',
+    in_game_name: 'ICC-(ADMIN)-(N3KN3K)-QK168210',
+    role: 'Admin',
+    cpm_id: 'QK168210',
+    car: 'CPM Spec (QK168210)',
+    hierarchy_order: 11,
+    featured: false,
+  },
+  {
+    id: 'm_12',
+    name: 'AZZY',
+    real_name: 'Azy Siermento',
+    in_game_name: '[ADMIN] ICC (Azzy✿) (AZZYYXX)',
+    role: 'Admin',
+    cpm_id: 'AZZYYXX',
+    car: 'CPM Spec (AZZYYXX)',
+    hierarchy_order: 12,
+    featured: false,
+  },
+  {
+    id: 'm_13',
+    name: 'Nio',
+    real_name: 'เจริโช ราพิช',
+    in_game_name: 'ICC | Nio | (EC446438) ADMIN',
+    role: 'Admin',
+    cpm_id: 'EC446438',
+    car: 'Admin Spec (EC446438)',
+    hierarchy_order: 13,
+    featured: false,
+  },
+  {
+    id: 'm_14',
     name: 'ROXAS',
     real_name: 'Roxas Jomy',
     in_game_name: '🖤𝕮𝕴𝕸𝕻𝕮.𝕻𝕳_ADMIN_ROXAS',
     role: 'Admin',
     cpm_id: 'Admin',
     car: 'Admin Spec',
-    hierarchy_order: 11,
-    featured: false,
-  },
-  {
-    id: 'm_12',
-    name: 'AQUAWRKZ',
-    real_name: 'Justine Bryan de Guzman',
-    in_game_name: '🖤𝕮𝕴𝕸𝕻𝕮.𝕻𝕳_ADMIN_AQUAWRKZ',
-    role: 'Admin',
-    cpm_id: 'Admin',
-    car: 'Admin Spec',
-    hierarchy_order: 12,
+    hierarchy_order: 14,
     featured: false,
   },
 
-  // Members & New Members
+  // Members
   {
-    id: 'm_13',
-    name: 'YELICH',
-    real_name: 'Ken Heindrich Narzoles',
-    in_game_name: 'ICC - (YELICH) - (QK168210)',
-    role: 'Member',
-    cpm_id: 'QK168210',
-    car: 'CPM Spec (QK168210)',
-    hierarchy_order: 13,
-    featured: false,
-  },
-  {
-    id: 'm_14',
+    id: 'm_15',
     name: 'Missche',
     real_name: 'Karla Mantos',
     in_game_name: 'Missche',
     role: 'Member',
     cpm_id: 'Member',
     car: 'CPM Spec',
-    hierarchy_order: 14,
-    featured: false,
-  },
-  {
-    id: 'm_15',
-    name: 'MANOK',
-    real_name: 'Alfon Jedric Udalve',
-    in_game_name: 'ICC (MANOK) (AP634449) NEW MEMBER',
-    role: 'New Member',
-    cpm_id: 'AP634449',
-    car: 'CPM Spec (AP634449)',
     hierarchy_order: 15,
     featured: false,
   },
   {
     id: 'm_16',
-    name: 'maw',
-    real_name: 'John Mark Condes',
-    in_game_name: '(maw) (IY234858) NEW MEMBER',
-    role: 'New Member',
-    cpm_id: 'IY234858',
-    car: 'CPM Spec (IY234858)',
-    hierarchy_order: 16,
-    featured: false,
-  },
-  {
-    id: 'm_17',
-    name: 'XED',
-    real_name: 'Dexter',
-    in_game_name: 'ICC - XED (TK668735) MEMBER',
-    role: 'Member',
-    cpm_id: 'TK668735',
-    car: 'CPM Spec (TK668735)',
-    hierarchy_order: 17,
-    featured: false,
-  },
-  {
-    id: 'm_18',
-    name: 'AZZY',
-    real_name: 'Azy Siermento',
-    in_game_name: 'ICC (AZZY)✿ (LY914190)',
-    role: 'Member',
-    cpm_id: 'LY914190',
-    car: 'CPM Spec (LY914190)',
-    hierarchy_order: 18,
-    featured: false,
-  },
-  {
-    id: 'm_19',
     name: 'bwisetor',
     real_name: 'Jhon Aerol Gonzaga',
     in_game_name: 'bwisetor',
     role: 'Member',
     cpm_id: 'Member',
     car: 'CPM Spec',
-    hierarchy_order: 19,
+    hierarchy_order: 16,
     featured: false,
   },
   {
-    id: 'm_20',
-    name: 'PRITS',
-    real_name: 'Pret Zel',
-    in_game_name: 'ICC (PRITS) (PRTZ3106) NEW MEMBER',
-    role: 'New Member',
-    cpm_id: 'PRTZ3106',
-    car: 'CPM Spec (PRTZ3106)',
-    hierarchy_order: 20,
+    id: 'm_17',
+    name: 'NHOGZ',
+    real_name: 'Nhogzkie Madera',
+    in_game_name: '[MEMBER]ICC-東NHOGZ東',
+    role: 'Member',
+    cpm_id: 'Member',
+    car: 'CPM Spec',
+    hierarchy_order: 17,
     featured: false,
   },
   {
-    id: 'm_21',
+    id: 'm_18',
     name: 'CHACHA',
     real_name: 'Jhon Carl Bautista',
     in_game_name: '[MEMBER] CHACHA',
     role: 'Member',
     cpm_id: 'Member',
     car: 'CPM Spec',
+    hierarchy_order: 18,
+    featured: false,
+  },
+  {
+    id: 'm_19',
+    name: 'PRITS',
+    real_name: 'Pret Zel',
+    in_game_name: 'ICC (PRITS) (PRITSSS) MEMBER',
+    role: 'Member',
+    cpm_id: 'PRITSSS',
+    car: 'CPM Spec (PRITSSS)',
+    hierarchy_order: 19,
+    featured: false,
+  },
+  {
+    id: 'm_20',
+    name: 'kambal ni Joshua Garcia',
+    real_name: 'Michael Viray Bondoc',
+    in_game_name: 'kambal ni Joshua Garcia',
+    role: 'Member',
+    cpm_id: 'Member',
+    car: 'CPM Spec',
+    hierarchy_order: 20,
+    featured: false,
+  },
+
+  // New Members
+  {
+    id: 'm_21',
+    name: 'Kapitan',
+    real_name: 'Joey Lutap',
+    in_game_name: 'Kapitan(NF093187)NEW MEMBER',
+    role: 'New Member',
+    cpm_id: 'NF093187',
+    car: 'CPM Spec (NF093187)',
     hierarchy_order: 21,
     featured: false,
   },
   {
     id: 'm_22',
-    name: 'Nhogzkie',
-    real_name: 'Nhogzkie Madera',
-    in_game_name: 'Nhogzkie Madera',
-    role: 'Member',
-    cpm_id: 'Member',
-    car: 'CPM Spec',
+    name: 'ICC (MANOK)',
+    real_name: 'Alfon Jedric Romblon',
+    in_game_name: 'ICC (MANOK) (AP634449) NEW MEMBER',
+    role: 'New Member',
+    cpm_id: 'AP634449',
+    car: 'CPM Spec (AP634449)',
     hierarchy_order: 22,
+    featured: false,
+  },
+  {
+    id: 'm_23',
+    name: 'Jape',
+    real_name: 'Jaf Justin Petacio',
+    in_game_name: 'ICC (Jape) (YR237424) NEW MEMBER',
+    role: 'New Member',
+    cpm_id: 'YR237424',
+    car: 'CPM Spec (YR237424)',
+    hierarchy_order: 23,
+    featured: false,
+  },
+  {
+    id: 'm_24',
+    name: 'Zekee',
+    real_name: 'Ezekiel Tanaleon',
+    in_game_name: 'ICC (Zekee) (ZP660188) NEW MEMBER',
+    role: 'New Member',
+    cpm_id: 'ZP660188',
+    car: 'CPM Spec (ZP660188)',
+    hierarchy_order: 24,
+    featured: false,
+  },
+  {
+    id: 'm_25',
+    name: 'ICC-CUTE',
+    real_name: 'Dwayne Rimando',
+    in_game_name: 'ICC-CUTE (CA186858) NEW MEMBER',
+    role: 'New Member',
+    cpm_id: 'CA186858',
+    car: 'CPM Spec (CA186858)',
+    hierarchy_order: 25,
     featured: false,
   },
 ];
@@ -320,6 +355,7 @@ export default function AdminMembers() {
     return (
       !search ||
       m.name?.toLowerCase().includes(q) ||
+      m.real_name?.toLowerCase().includes(q) ||
       m.in_game_name?.toLowerCase().includes(q) ||
       m.car?.toLowerCase().includes(q) ||
       m.role?.toLowerCase().includes(q)
@@ -329,8 +365,10 @@ export default function AdminMembers() {
   const openCreateModal = () => {
     setEditingMember({
       name: '',
+      real_name: '',
       in_game_name: '',
       role: 'Member',
+      cpm_id: '',
       car: '',
       bio: '',
       avatar_url: '',
@@ -412,7 +450,6 @@ export default function AdminMembers() {
       addToast(`🎉 ${member.name} promoted to ${nextRole}!`, 'success');
       refetch();
     } catch (err) {
-      // Local fallback
       member.role = nextRole;
       member.hierarchy_order = newHierarchyOrder;
       addToast(`🎉 ${member.name} promoted to ${nextRole}! (Local mode)`, 'success');
@@ -538,7 +575,7 @@ export default function AdminMembers() {
         </div>
         <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between">
           <div>
-            <span className="text-xs text-blue-400/80 font-bold uppercase tracking-wider block">Staff Admins</span>
+            <span className="text-xs text-blue-400/80 font-bold uppercase tracking-wider block">Staff Admins & Officers</span>
             <span className="text-2xl sm:text-3xl font-black text-blue-400 mt-1 block">
               {memberList.filter((m) => ['Admin', 'President', 'Vice President'].includes(m.role)).length}
             </span>
@@ -547,7 +584,7 @@ export default function AdminMembers() {
         </div>
         <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
           <div>
-            <span className="text-xs text-emerald-400/80 font-bold uppercase tracking-wider block">Regular Members</span>
+            <span className="text-xs text-emerald-400/80 font-bold uppercase tracking-wider block">Regular Members & Recruits</span>
             <span className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1 block">
               {memberList.filter((m) => ['Member', 'New Member'].includes(m.role)).length}
             </span>
@@ -568,7 +605,7 @@ export default function AdminMembers() {
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             type="text"
-            placeholder="Search member, role (e.g. Admin, Member), IGN, or car..."
+            placeholder="Search member, role (e.g. Vice President, Admin), IGN, or car..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-12 pr-5 py-3.5 rounded-2xl bg-black/60 border border-white/15 text-sm sm:text-base text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)] transition-colors"
@@ -597,7 +634,7 @@ export default function AdminMembers() {
                 <th className="px-8 py-5">Rank Order</th>
                 <th className="px-8 py-5">Member Details</th>
                 <th className="px-8 py-5">Clan Role</th>
-                <th className="px-8 py-5">Primary Vehicle</th>
+                <th className="px-8 py-5">CPM ID & Vehicle</th>
                 <th className="px-8 py-5">Featured</th>
                 <th className="px-8 py-5 text-right">Admin & Promotion Actions</th>
               </tr>
@@ -625,7 +662,7 @@ export default function AdminMembers() {
                             <span>{m.name}</span>
                             {m.real_name && <span className="text-xs text-white/70 font-normal">({m.real_name})</span>}
                           </div>
-                          <div className="text-xs text-white/50 font-mono font-normal mt-0.5">
+                          <div className="text-xs text-amber-300 font-mono font-normal mt-0.5">
                             {m.in_game_name}
                           </div>
                         </div>
@@ -646,7 +683,10 @@ export default function AdminMembers() {
                         {m.role || 'Member'}
                       </span>
                     </td>
-                    <td className="px-8 py-6 text-white/80 font-medium text-sm sm:text-base">{m.car || '—'}</td>
+                    <td className="px-8 py-6 text-white/80 font-medium text-sm sm:text-base">
+                      <div className="font-mono text-xs text-amber-400 font-bold">{m.cpm_id || 'REGISTERED'}</div>
+                      <div className="text-xs text-white/60">{m.car || 'CPM Spec'}</div>
+                    </td>
                     <td className="px-8 py-6">
                       {m.featured ? (
                         <span className="text-amber-400 font-extrabold flex items-center gap-1">★ Yes</span>
@@ -815,7 +855,7 @@ export default function AdminMembers() {
                     rows="3"
                     value={promoReason}
                     onChange={(e) => setPromoReason(e.target.value)}
-                    placeholder="e.g. Promoted to Admin for outstanding tandem leadership and active server moderation."
+                    placeholder="e.g. Promoted to Vice President for outstanding leadership and event coordination."
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
                   />
                 </div>
@@ -888,6 +928,19 @@ export default function AdminMembers() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
+                      Real Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editingMember.real_name || ''}
+                      onChange={(e) => setEditingMember({ ...editingMember, real_name: e.target.value })}
+                      placeholder="e.g. Mark Joseph Tandang"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
                       CPM In-Game Name *
                     </label>
                     <input
@@ -913,6 +966,19 @@ export default function AdminMembers() {
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
+                      CPM ID Number
+                    </label>
+                    <input
+                      type="text"
+                      value={editingMember.cpm_id || ''}
+                      onChange={(e) => setEditingMember({ ...editingMember, cpm_id: e.target.value })}
+                      placeholder="e.g. QK168210"
+                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
+                    />
                   </div>
 
                   <div>
