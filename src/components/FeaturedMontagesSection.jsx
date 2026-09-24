@@ -45,8 +45,9 @@ export default function FeaturedMontagesSection() {
     limit: 2,
   });
 
-  const baseList = montages && montages.length > 0 ? montages : fallbackMontages;
-  const displayMontages = [...localVideos.filter((v) => v.featured), ...baseList.filter((b) => !localVideos.some((l) => l.id === b.id))];
+  const validLocal = (Array.isArray(localVideos) ? localVideos : []).filter((v) => v && typeof v === 'object');
+  const validBase = (Array.isArray(montages) && montages.length > 0 ? montages : fallbackMontages).filter((b) => b && typeof b === 'object');
+  const displayMontages = [...validLocal.filter((v) => v.featured), ...validBase.filter((b) => !validLocal.some((l) => l.id === b.id))];
 
   return (
     <section id="montages" className="py-24 relative overflow-hidden">

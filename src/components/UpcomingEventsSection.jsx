@@ -70,12 +70,12 @@ export default function UpcomingEventsSection() {
     limit: 3,
   });
 
-  const baseList = isCleared
-    ? []
-    : (events && events.length > 0 ? events : fallbackEvents);
+  const validLocal = (Array.isArray(localEvents) ? localEvents : []).filter((e) => e && typeof e === 'object');
+  const validBase = (Array.isArray(events) && events.length > 0 ? events : fallbackEvents).filter((e) => e && typeof e === 'object');
 
-  const rawList = [...localEvents, ...baseList.filter((b) => !localEvents.some((l) => l.id === b.id))];
+  const rawList = isCleared ? [] : [...validLocal, ...validBase.filter((b) => !validLocal.some((l) => l.id === b.id))];
   const displayEvents = rawList.filter((e) =>
+    e &&
     !deletedIds.includes(String(e.id)) &&
     !deletedIds.includes(e.id) &&
     !deletedIds.includes(e.title)

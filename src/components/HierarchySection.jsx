@@ -4,6 +4,7 @@ import { Crown, Shield, Star, User, ChevronDown } from 'lucide-react';
 import { useInView, useSupabaseQuery } from '../lib/hooks';
 import SectionHeader from './SectionHeader';
 import { SkeletonGrid } from './LoadingSkeleton';
+import { fallbackMembers } from '../pages/admin/AdminMembers';
 
 const roleConfig = {
   'Owner': { icon: Crown, color: '#FFD700', order: 1 },
@@ -62,18 +63,19 @@ function MemberCard({ member, index }) {
 }
 
 export default function HierarchySection({ preview = false }) {
-  const { data: members, loading } = useSupabaseQuery('members', {
-    order: { column: 'sort_order', ascending: true },
-    filter: { status: 'active' },
+  const { data: dbMembers, loading } = useSupabaseQuery('members', {
+    order: { column: 'hierarchy_order', ascending: true },
   });
+
+  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0 ? dbMembers : fallbackMembers;
 
   // Group by role
   const grouped = {};
-  const roleOrder = ['Owner', 'Co-Owner', 'Head Admin', 'Admin', 'Moderator', 'Elite Member', 'Member', 'Trial Member'];
+  const roleOrder = ['Owner', 'Co-Owner', 'President', 'Vice President', 'Head Admin', 'Admin', 'Moderator', 'Elite Member', 'Member', 'New Member', 'Trial Member'];
 
-  if (members) {
+  if (memberList) {
     roleOrder.forEach(role => {
-      const roleMembers = members.filter(m => m.role === role);
+      const roleMembers = memberList.filter(m => m && (m.role?.toLowerCase() === role.toLowerCase() || m.role === role));
       if (roleMembers.length > 0) {
         grouped[role] = roleMembers;
       }

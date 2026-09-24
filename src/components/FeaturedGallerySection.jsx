@@ -60,7 +60,8 @@ export default function FeaturedGallerySection() {
     limit: 6,
   });
 
-  const displayPhotos = galleryItems && galleryItems.length > 0 ? galleryItems : fallbackGallery;
+  const rawPhotos = Array.isArray(galleryItems) && galleryItems.length > 0 ? galleryItems : fallbackGallery;
+  const displayPhotos = rawPhotos.filter((p) => p && typeof p === 'object');
 
   return (
     <section id="gallery" className="py-24 relative bg-[var(--color-surface)]/40 border-y border-[var(--color-border)]">
