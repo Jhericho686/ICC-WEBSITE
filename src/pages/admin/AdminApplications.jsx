@@ -20,6 +20,7 @@ import {
 import { useSupabaseQuery } from '../../lib/hooks';
 import { updateRow, deleteRow, insertRow, logActivity } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
+import { safeArrayParse } from '../../lib/storage';
 
 const fallbackApps = [];
 
@@ -30,23 +31,11 @@ export default function AdminApplications() {
   const { addToast } = useToast();
 
   const [deletedAppIds, setDeletedAppIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_deleted_applications');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.from(new Set([...parsed, 'Jhericho Rapiz', 'NIO']));
-    } catch (err) {
-      return ['Jhericho Rapiz', 'NIO'];
-    }
+    const parsed = safeArrayParse('icc_deleted_applications');
+    return Array.from(new Set([...parsed, 'Jhericho Rapiz', 'NIO']));
   });
 
-  const [localApps, setLocalApps] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_applications');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localApps, setLocalApps] = useState(() => safeArrayParse('icc_custom_applications'));
 
   const { data: dbApps, refetch } = useSupabaseQuery('applications', {
     order: { column: 'created_at', ascending: false },

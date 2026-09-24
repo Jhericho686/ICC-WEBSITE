@@ -30,9 +30,12 @@ import AdminEvents from './pages/admin/AdminEvents';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminLogs from './pages/admin/AdminLogs';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 export default function App() {
   return (
-    <AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
       <SiteSettingsProvider>
         <ToastProvider>
           <Router>
@@ -79,5 +82,6 @@ export default function App() {
         </ToastProvider>
       </SiteSettingsProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }

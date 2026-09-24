@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, X, Film, Video as VideoIcon, Image as ImageIcon, Clapperboard } from 'lucide-react';
 import { useSupabaseQuery } from '../lib/hooks';
+import { safeArrayParse } from '../lib/storage';
 import SectionHeader from '../components/SectionHeader';
 
 const fallbackVideos = [
@@ -41,14 +42,7 @@ function extractYoutubeId(url) {
 export default function MontagesPage() {
   const [activeVideo, setActiveVideo] = useState(null);
 
-  const [localVideos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_videos');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localVideos] = useState(() => safeArrayParse('icc_custom_videos'));
 
   const { data: dbVideos } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },

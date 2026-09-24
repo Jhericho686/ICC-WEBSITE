@@ -4,6 +4,7 @@ import { Search, Handshake, CheckCircle, XCircle, Trash2, Eye, Calendar, Users, 
 import { useSupabaseQuery } from '../../lib/hooks';
 import { updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
+import { safeArrayParse } from '../../lib/storage';
 import { defaultPastCollabs } from '../CollaboratePage';
 
 export default function AdminCollaborations() {
@@ -15,12 +16,8 @@ export default function AdminCollaborations() {
   const { addToast } = useToast();
 
   const [pastCollabs, setPastCollabs] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_past_collabs');
-      return saved ? JSON.parse(saved) : defaultPastCollabs;
-    } catch (err) {
-      return defaultPastCollabs;
-    }
+    const saved = safeArrayParse('icc_past_collabs');
+    return saved.length > 0 ? saved : defaultPastCollabs;
   });
 
   const { data: dbCollabs, refetch } = useSupabaseQuery('collaboration_requests', {

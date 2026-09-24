@@ -15,25 +15,26 @@ import {
 } from 'lucide-react';
 import { countRows, fetchAll } from '../../lib/supabase';
 
+function safeArrayParse(key) {
+  try {
+    const val = localStorage.getItem(key);
+    if (!val || val === 'undefined' || val === 'null') return [];
+    const parsed = JSON.parse(val);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState(() => {
-    let customVids = [];
-    let customPhotos = [];
-    let customEvts = [];
-    let deletedEvts = [];
-    let isCleared = false;
-    let customApps = [];
-    let deletedApps = [];
-
-    try {
-      customVids = JSON.parse(localStorage.getItem('icc_custom_videos') || '[]');
-      customPhotos = JSON.parse(localStorage.getItem('icc_custom_photos') || '[]');
-      customEvts = JSON.parse(localStorage.getItem('icc_custom_events') || '[]');
-      deletedEvts = JSON.parse(localStorage.getItem('icc_deleted_events') || '[]');
-      isCleared = localStorage.getItem('icc_events_cleared') === 'true';
-      customApps = JSON.parse(localStorage.getItem('icc_custom_applications') || '[]');
-      deletedApps = JSON.parse(localStorage.getItem('icc_deleted_applications') || '[]');
-    } catch (err) {}
+    const customVids = safeArrayParse('icc_custom_videos');
+    const customPhotos = safeArrayParse('icc_custom_photos');
+    const customEvts = safeArrayParse('icc_custom_events');
+    const deletedEvts = safeArrayParse('icc_deleted_events');
+    const isCleared = localStorage.getItem('icc_events_cleared') === 'true';
+    const customApps = safeArrayParse('icc_custom_applications');
+    const deletedApps = safeArrayParse('icc_deleted_applications');
 
     const totalVideos = customVids.length + 2;
     const totalPhotos = customPhotos.length + 8;

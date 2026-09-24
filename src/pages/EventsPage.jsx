@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Users, Award, ShieldAlert, CheckCircle2, Image as ImageIcon, Video, ExternalLink } from 'lucide-react';
 import { useSupabaseQuery } from '../lib/hooks';
-import SectionHeader from '../components/SectionHeader';
+import { safeArrayParse } from '../lib/storage';
 
 export const fallbackEvents = [
   {
@@ -76,23 +76,8 @@ export default function EventsPage() {
     return localStorage.getItem('icc_events_cleared') === 'true';
   });
 
-  const [localEvents] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
-
-  const [deletedIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_deleted_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localEvents] = useState(() => safeArrayParse('icc_custom_events'));
+  const [deletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
 
   const { data: dbEvents } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: activeTab === 'upcoming' },

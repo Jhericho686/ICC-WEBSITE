@@ -4,6 +4,7 @@ import { Plus, Search, Edit2, Trash2, Video, Play, ExternalLink, Upload, Film, I
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
+import { safeArrayParse } from '../../lib/storage';
 
 const fallbackVideos = [
   {
@@ -33,14 +34,7 @@ export default function AdminMontages() {
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
 
-  const [localVideos, setLocalVideos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_videos');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localVideos, setLocalVideos] = useState(() => safeArrayParse('icc_custom_videos'));
 
   const { data: dbVideos, refetch } = useSupabaseQuery('videos', {
     order: { column: 'created_at', ascending: false },

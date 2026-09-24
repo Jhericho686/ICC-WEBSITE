@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Users, ArrowRight } from 'lucide-react';
 import { useInView, useSupabaseQuery } from '../lib/hooks';
+import { safeArrayParse } from '../lib/storage';
 import SectionHeader from './SectionHeader';
 
 const fallbackEvents = [
@@ -60,23 +61,8 @@ export default function UpcomingEventsSection() {
     return localStorage.getItem('icc_events_cleared') === 'true';
   });
 
-  const [localEvents] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
-
-  const [deletedIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_deleted_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localEvents] = useState(() => safeArrayParse('icc_custom_events'));
+  const [deletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
 
   const { data: events } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: true },

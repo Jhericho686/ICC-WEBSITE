@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, X, ExternalLink, Film, ArrowRight } from 'lucide-react';
 import { useInView, useSupabaseQuery } from '../lib/hooks';
+import { safeArrayParse } from '../lib/storage';
 import SectionHeader from './SectionHeader';
 
 const fallbackMontages = [
@@ -36,14 +37,7 @@ export default function FeaturedMontagesSection() {
   const [ref, inView] = useInView();
   const [activeVideo, setActiveVideo] = useState(null);
 
-  const [localVideos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_videos');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [localVideos] = useState(() => safeArrayParse('icc_custom_videos'));
 
   const { data: montages } = useSupabaseQuery('videos', {
     filter: { featured: true },

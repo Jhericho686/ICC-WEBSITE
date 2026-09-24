@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Handshake, Send, CheckCircle, Star, Calendar, Users, Trophy } from 'lucide-react';
 import { insertRow } from '../lib/supabase';
 import { useToast } from '../lib/contexts';
+import { safeArrayParse } from '../lib/storage';
 import SectionHeader from '../components/SectionHeader';
 
 export const defaultPastCollabs = [
@@ -50,12 +51,8 @@ export default function CollaboratePage() {
   const { addToast } = useToast();
 
   const [pastCollabList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_past_collabs');
-      return saved ? JSON.parse(saved) : defaultPastCollabs;
-    } catch (err) {
-      return defaultPastCollabs;
-    }
+    const saved = safeArrayParse('icc_past_collabs');
+    return saved.length > 0 ? saved : defaultPastCollabs;
   });
 
   const [formData, setFormData] = useState({

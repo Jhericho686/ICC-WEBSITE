@@ -4,6 +4,7 @@ import { Plus, Search, Edit2, Trash2, Calendar, MapPin, Clock, Users, Image as I
 import { useSupabaseQuery } from '../../lib/hooks';
 import { insertRow, updateRow, deleteRow } from '../../lib/supabase';
 import { useToast } from '../../lib/contexts';
+import { safeArrayParse } from '../../lib/storage';
 import { fallbackEvents } from '../EventsPage';
 
 export default function AdminEvents() {
@@ -16,23 +17,8 @@ export default function AdminEvents() {
     return localStorage.getItem('icc_events_cleared') === 'true';
   });
 
-  const [deletedIds, setDeletedIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_deleted_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
-
-  const [localEvents, setLocalEvents] = useState(() => {
-    try {
-      const saved = localStorage.getItem('icc_custom_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch (err) {
-      return [];
-    }
-  });
+  const [deletedIds, setDeletedIds] = useState(() => safeArrayParse('icc_deleted_events'));
+  const [localEvents, setLocalEvents] = useState(() => safeArrayParse('icc_custom_events'));
 
   const { data: dbEvents, refetch } = useSupabaseQuery('events', {
     order: { column: 'event_date', ascending: false },
