@@ -195,14 +195,14 @@ export async function fetchAll(collectionName, options = {}) {
 
     if (querySnapshot && !querySnapshot.empty) {
       items = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...docSnap.data(),
+        id: docSnap.id,
       }));
       fetchedFromCloud = true;
       setLocalStore(collectionName, items);
     }
   } catch (error) {
-    // Cloud fetch notice (offline/timeout/initial setup) - fallback smoothly
+    // Cloud fetch notice (offline/initial setup) - fallback smoothly
   }
 
   // 3. If cloud is empty or unavailable, load from Local Sync Store
@@ -243,8 +243,8 @@ export async function fetchAll(collectionName, options = {}) {
 
 export async function fetchOne(collectionName, id) {
   try {
-    const docSnap = await withTimeout(getDoc(doc(db, collectionName, String(id))), CLOUD_TIMEOUT_MS);
-    if (docSnap && docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
+    const docSnap = await withTimeout(getDoc(doc(db, collectionName, String(id))), 3000);
+    if (docSnap && docSnap.exists()) return { ...docSnap.data(), id: docSnap.id };
   } catch (e) {}
 
   const local = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
@@ -278,12 +278,10 @@ export async function insertRow(collectionName, data) {
   setLocalStore(collectionName, updated);
   broadcastSync(collectionName);
 
-  // 2. Persist to Firestore Cloud asynchronously (non-blocking)
+  // 2. Persist directly to Google Cloud Firestore
   try {
     const docRef = doc(db, collectionName, newId);
-    withTimeout(setDoc(docRef, payload, { merge: true }), CLOUD_TIMEOUT_MS).catch((err) => {
-      console.warn(`Firestore insert sync pending for ${collectionName}:`, err.message);
-    });
+    await setDoc(docRef, payload, { merge: true });
   } catch (error) {
     console.warn(`Firestore insert error for ${collectionName}:`, error.message);
   }
@@ -299,10 +297,10 @@ export async function updateRow(collectionName, id, updates) {
   // 1. Immediately update Local Sync Store & notify all components
   const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
   const index = current.findIndex((item) => String(item.id) === String(id));
-  let updatedItem = { id, ...sanitized, updated_at: updatedTime };
+  let updatedItem = { ...sanitized, id, updated_at: updatedTime };
 
   if (index >= 0) {
-    updatedItem = { ...current[index], ...sanitized, updated_at: updatedTime };
+    updatedItem = { ...current[index], ...sanitized, id, updated_at: updatedTime };
     current[index] = updatedItem;
     setLocalStore(collectionName, [...current]);
   } else {
@@ -311,12 +309,10 @@ export async function updateRow(collectionName, id, updates) {
   }
   broadcastSync(collectionName);
 
-  // 2. Persist to Firestore Cloud asynchronously (non-blocking)
+  // 2. Persist directly to Google Cloud Firestore
   try {
     const docRef = doc(db, collectionName, String(id));
-    withTimeout(setDoc(docRef, { ...sanitized, updated_at: updatedTime }, { merge: true }), CLOUD_TIMEOUT_MS).catch((err) => {
-      console.warn(`Firestore update sync pending for ${collectionName}/${id}:`, err.message);
-    });
+    await setDoc(docRef, { ...sanitized, updated_at: updatedTime }, { merge: true });
   } catch (error) {
     console.warn(`Firestore update error for ${collectionName}/${id}:`, error.message);
   }
@@ -333,12 +329,17 @@ export async function deleteRow(collectionName, id) {
   setLocalStore(collectionName, filtered);
   broadcastSync(collectionName);
 
-  // 2. Remove from Firestore Cloud asynchronously (non-blocking)
+  // 2. Remove directly from Google Cloud Firestore
   try {
     const docRef = doc(db, collectionName, String(id));
-    withTimeout(deleteDoc(docRef), CLOUD_TIMEOUT_MS).catch((err) => {
-      console.warn(`Firestore delete sync pending for ${collectionName}/${id}:`, err.message);
-    });
+    await deleteDoc(docRef);
+
+    // Also delete any document whose internal 'id' matches (handles seeded documents)
+    const q = query(collection(db, collectionName), where('id', '==', String(id)));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+    }
   } catch (error) {
     console.warn(`Firestore delete error for ${collectionName}/${id}:`, error.message);
   }
