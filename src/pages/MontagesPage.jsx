@@ -86,8 +86,11 @@ export default function MontagesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-14 max-w-5xl mx-auto">
           {videoList.map((video, idx) => {
             const ytId = extractYoutubeId(video.youtube_url);
-            const driveId = extractGoogleDriveId(video.youtube_url);
-            const thumb = video.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280` : ''));
+            const rawThumb = video.thumbnail_url;
+            const isBrokenDriveThumb = rawThumb && (rawThumb.includes('drive.google.com/thumbnail') || rawThumb.includes('drive.google.com/file'));
+            const thumb = (!rawThumb || isBrokenDriveThumb)
+              ? (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : '/gallery/icc-meet-grand-gathering.png')
+              : rawThumb;
             const creatorName = video.creator || video.author || 'ICC Production';
             const creatorRole = video.creator_role || 'Videographer';
 
@@ -104,6 +107,10 @@ export default function MontagesPage() {
                   <img
                     src={thumb}
                     alt={video.title}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />

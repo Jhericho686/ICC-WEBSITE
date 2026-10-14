@@ -65,8 +65,11 @@ export default function FeaturedMontagesSection() {
         <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-14 max-w-5xl mx-auto">
           {displayMontages.map((item, idx) => {
             const ytId = extractYoutubeId(item.youtube_url);
-            const driveId = extractGoogleDriveId(item.youtube_url);
-            const thumb = item.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280` : ''));
+            const rawThumb = item.thumbnail_url;
+            const isBrokenDriveThumb = rawThumb && (rawThumb.includes('drive.google.com/thumbnail') || rawThumb.includes('drive.google.com/file'));
+            const thumb = (!rawThumb || isBrokenDriveThumb)
+              ? (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : '/gallery/icc-meet-grand-gathering.png')
+              : rawThumb;
 
             return (
               <motion.div
@@ -81,6 +84,10 @@ export default function FeaturedMontagesSection() {
                   <img
                     src={thumb}
                     alt={item.title}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />

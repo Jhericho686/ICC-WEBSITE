@@ -372,30 +372,63 @@ export async function uploadFile(bucket, path, file) {
 
 export async function uploadMediaFile(bucket, file, onProgress) {
   if (!file) return null;
+
+  // 1. If file is an image, immediately compress to fast, reliable high-quality JPEG (<75KB)
+  if (file.type && file.type.startsWith('image/')) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 960;
+          let w = img.width;
+          let h = img.height;
+          if (w > h && w > maxDim) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else if (h > maxDim) {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          if (onProgress) onProgress(100);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  }
+
   const sanitizedName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, '_') : 'upload';
   const path = `${Date.now()}_${sanitizedName}`;
 
-  // Try Firebase Storage with resumable progress
+  // Try Firebase Storage with fast timeout for video files
   try {
     const fileRef = storageRef(storage, `${bucket}/${path}`);
     const downloadUrl = await new Promise((resolve, reject) => {
       const uploadTask = uploadBytesResumable(fileRef, file);
 
-      // Inactivity timeout: only triggers if no upload progress occurs for 90 seconds
       let inactivityTimer = setTimeout(() => {
         try { uploadTask.cancel(); } catch (e) {}
-        reject(new Error('Cloud upload timed out due to no network activity. Please check your connection.'));
-      }, 90000);
+        reject(new Error('Cloud upload timed out.'));
+      }, 30000);
 
       uploadTask.on(
         'state_changed',
         (snapshot) => {
-          // Reset timer on each chunk of progress
           clearTimeout(inactivityTimer);
           inactivityTimer = setTimeout(() => {
             try { uploadTask.cancel(); } catch (e) {}
-            reject(new Error('Cloud upload stalled. Network connection lost.'));
-          }, 90000);
+            reject(new Error('Cloud upload stalled.'));
+          }, 30000);
 
           if (snapshot.totalBytes > 0) {
             const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
@@ -404,13 +437,7 @@ export async function uploadMediaFile(bucket, file, onProgress) {
         },
         (error) => {
           clearTimeout(inactivityTimer);
-          if (error.code === 'storage/unauthorized') {
-            reject(new Error('Upload permission denied. Firebase Storage rules must allow writes.'));
-          } else if (error.code === 'storage/bucket-not-found') {
-            reject(new Error('Firebase Storage bucket not found. Please ensure Cloud Storage is created in your Firebase Console.'));
-          } else {
-            reject(error);
-          }
+          reject(error);
         },
         async () => {
           clearTimeout(inactivityTimer);
@@ -427,43 +454,8 @@ export async function uploadMediaFile(bucket, file, onProgress) {
     if (downloadUrl) return downloadUrl;
   } catch (err) {
     console.warn(`Firebase Storage upload notice for ${bucket}/${path}:`, err.message);
-
-    // If file is an image, compress via canvas to <= 900px so it is compact (<80KB) and never breaks Firestore
-    if (file.type && file.type.startsWith('image/')) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxDim = 900;
-            let w = img.width;
-            let h = img.height;
-            if (w > h && w > maxDim) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else if (h > maxDim) {
-              w = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            const compressed = canvas.toDataURL('image/jpeg', 0.82);
-            resolve(compressed);
-          };
-          img.onerror = () => resolve(e.target.result);
-          img.src = e.target.result;
-        };
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // For video files, DO NOT return a temporary blob URL (blob:http...) because it only lives in memory and vanishes on page reload
     throw new Error(
-      'Cloud storage upload failed: Firebase Cloud Storage is not yet initialized in your console. Please enable it at https://console.firebase.google.com/project/iccwebsite-e3a90/storage, or paste a YouTube / Google Drive / direct video URL.'
+      'Cloud storage upload failed: Please paste a YouTube or Google Drive video share link.'
     );
   }
 }

@@ -133,13 +133,12 @@ export default function AdminMontages() {
 
   const handleVideoUrlChange = (val) => {
     const ytId = extractYoutubeId(val);
-    const driveId = extractGoogleDriveId(val);
     setEditingVideo((prev) => {
       const next = { ...prev, youtube_url: val };
-      if (ytId && (!prev.thumbnail_url || prev.thumbnail_url.includes('unsplash'))) {
+      if (ytId && (!prev.thumbnail_url || prev.thumbnail_url.includes('drive.google.com') || prev.thumbnail_url.includes('unsplash'))) {
         next.thumbnail_url = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
-      } else if (driveId && (!prev.thumbnail_url || prev.thumbnail_url.includes('unsplash'))) {
-        next.thumbnail_url = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280`;
+      } else if (!prev.thumbnail_url || prev.thumbnail_url.includes('drive.google.com/thumbnail')) {
+        next.thumbnail_url = '/gallery/icc-meet-grand-gathering.png';
       }
       return next;
     });
@@ -149,6 +148,7 @@ export default function AdminMontages() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    addToast('📸 Loading cover photo...', 'info');
     try {
       const url = await uploadMediaFile('gallery', file);
       if (url) {
@@ -156,11 +156,13 @@ export default function AdminMontages() {
           ...prev,
           thumbnail_url: url,
         }));
-        addToast('📸 Thumbnail cover loaded!', 'success');
+        addToast('📸 Cover photo loaded successfully!', 'success');
       }
     } catch (err) {
       console.warn('Thumbnail upload error:', err);
       addToast('Error uploading thumbnail: ' + err.message, 'error');
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -275,8 +277,11 @@ export default function AdminMontages() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {filtered.map((item, idx) => {
           const ytId = extractYoutubeId(item.youtube_url);
-          const driveId = extractGoogleDriveId(item.youtube_url);
-          const thumb = item.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280` : 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&q=80'));
+          const rawThumb = item.thumbnail_url;
+          const isBrokenDriveThumb = rawThumb && (rawThumb.includes('drive.google.com/thumbnail') || rawThumb.includes('drive.google.com/file'));
+          const thumb = (!rawThumb || isBrokenDriveThumb)
+            ? (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : '/gallery/icc-meet-grand-gathering.png')
+            : rawThumb;
 
           return (
           <div
@@ -294,6 +299,10 @@ export default function AdminMontages() {
                 <img
                   src={thumb}
                   alt={item.title}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               )}
@@ -564,13 +573,39 @@ export default function AdminMontages() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
-                    Thumbnail Photo Upload (Mobile / PC)
+                    Video Cover Photo / Thumbnail (Mobile / PC)
                   </label>
 
+                  {/* Live Visual Preview of Selected Cover */}
+                  {editingVideo.thumbnail_url && (
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-amber-500/40 bg-black/60 my-2 shadow-xl">
+                      <img
+                        src={editingVideo.thumbnail_url}
+                        alt="Cover Preview"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        Current Cover Preview
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingVideo({ ...editingVideo, thumbnail_url: '' })}
+                        className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-red-600/90 hover:bg-red-600 text-[10px] font-bold text-white transition-colors cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mb-2">
-                    <label className="flex items-center justify-center gap-2 p-3 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-white text-white text-xs font-semibold cursor-pointer transition-colors">
+                    <label className="flex items-center justify-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-dashed border-amber-500/40 hover:border-amber-400 text-amber-300 text-xs font-bold cursor-pointer transition-all hover:bg-amber-500/20">
                       <ImageIcon className="w-4 h-4 text-amber-400" />
-                      <span>Upload Thumbnail Image from Mobile / Phone</span>
+                      <span>📸 Pick / Upload Photo from Phone or Computer</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -580,11 +615,40 @@ export default function AdminMontages() {
                     </label>
                   </div>
 
+                  {/* Preset Clan Photography Options */}
+                  <div className="p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2 mb-2">
+                    <span className="text-[11px] text-white/60 font-semibold block">
+                      Or select an official Clan Photo Cover:
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { label: 'Grand Meet', src: '/gallery/icc-meet-grand-gathering.png' },
+                        { label: 'Touge Pass', src: '/gallery/icc-meet-touge-pass.png' },
+                        { label: 'Parking Stance', src: '/gallery/icc-meet-parking-showcase.png' },
+                        { label: 'Sunset Drift', src: '/gallery/icc-meet-drift-sunset.png' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.src}
+                          type="button"
+                          onClick={() => setEditingVideo({ ...editingVideo, thumbnail_url: preset.src })}
+                          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all text-left truncate flex items-center gap-1.5 cursor-pointer ${
+                            editingVideo.thumbnail_url === preset.src
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+                              : 'bg-white/5 border-white/10 hover:border-white/30 text-white/70'
+                          }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                          <span className="truncate">{preset.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <input
                     type="text"
                     value={editingVideo.thumbnail_url || ''}
                     onChange={(e) => setEditingVideo({ ...editingVideo, thumbnail_url: e.target.value })}
-                    placeholder="https://... or upload photo above"
+                    placeholder="Image URL or upload custom photo above"
                     className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)] font-mono"
                   />
                 </div>
