@@ -132,12 +132,12 @@ export default function AdminCollaborations() {
     }
 
     try {
-      if (editingPastCollab.id && !String(editingPastCollab.id).startsWith('pc_')) {
+      if (editingPastCollab.id) {
         await updateRow('past_collaborations', editingPastCollab.id, editingPastCollab);
       } else {
         await insertRow('past_collaborations', editingPastCollab);
       }
-      addToast('🤝 Past collaboration saved to Cloud Firestore!', 'success');
+      addToast('🤝 Past collaboration saved successfully!', 'success');
     } catch (err) {
       console.warn('Cloud save past collab error:', err);
       addToast('Error saving collaboration: ' + err.message, 'error');

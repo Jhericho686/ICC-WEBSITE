@@ -109,7 +109,7 @@ export default function AdminEvents() {
       return;
     }
 
-    const isEdit = !!editingEvent.id && !String(editingEvent.id).startsWith('e_fallback_');
+    const isEdit = !!editingEvent.id;
     const savedItem = {
       title: editingEvent.title,
       category: editingEvent.category || 'CAR MEET',

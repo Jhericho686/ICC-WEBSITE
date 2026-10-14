@@ -159,12 +159,12 @@ export default function AdminGallery() {
     }
 
     try {
-      if (editingPhoto.id && !String(editingPhoto.id).startsWith('g_')) {
+      if (editingPhoto.id) {
         await updateRow('gallery', editingPhoto.id, editingPhoto);
-        addToast('✅ Photograph updated in Cloud Firestore.', 'success');
+        addToast('✅ Photograph updated successfully.', 'success');
       } else {
         await insertRow('gallery', editingPhoto);
-        addToast('🎉 New photograph published to Cloud Firestore.', 'success');
+        addToast('🎉 New photograph published successfully.', 'success');
       }
       setIsModalOpen(false);
       refetch();

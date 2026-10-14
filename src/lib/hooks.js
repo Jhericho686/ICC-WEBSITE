@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchAll, countRows } from './supabase';
 
-/* ─── Fetch data from a Supabase table ─── */
+/* ─── Fetch data from a Supabase/Firebase table with Real-Time Sync ─── */
 export function useSupabaseQuery(table, options = {}, deps = []) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const result = await fetchAll(table, options);
       setData(result);
@@ -18,26 +16,70 @@ export function useSupabaseQuery(table, options = {}, deps = []) {
     } finally {
       setLoading(false);
     }
-  }, [table, ...deps]);
+  }, [table, JSON.stringify(options), ...deps]);
 
   useEffect(() => {
     refetch();
-  }, [refetch]);
+
+    const handleSync = (e) => {
+      if (!e.detail?.collection || e.detail.collection === table) {
+        refetch();
+      }
+    };
+
+    const handleStorage = (e) => {
+      if (e.key === 'icc_last_sync' || e.key === `icc_store_${table}`) {
+        refetch();
+      }
+    };
+
+    window.addEventListener('icc_data_sync', handleSync);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('icc_data_sync', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [refetch, table]);
 
   return { data, loading, error, refetch };
 }
 
-/* ─── Count rows in a Supabase table ─── */
+/* ─── Count rows in a Supabase/Firebase table with Real-Time Sync ─── */
 export function useSupabaseCount(table, filter = {}, deps = []) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const recount = useCallback(() => {
     countRows(table, filter)
       .then(setCount)
       .catch(() => setCount(0))
       .finally(() => setLoading(false));
-  }, [table, ...deps]);
+  }, [table, JSON.stringify(filter), ...deps]);
+
+  useEffect(() => {
+    recount();
+
+    const handleSync = (e) => {
+      if (!e.detail?.collection || e.detail.collection === table) {
+        recount();
+      }
+    };
+
+    const handleStorage = (e) => {
+      if (e.key === 'icc_last_sync' || e.key === `icc_store_${table}`) {
+        recount();
+      }
+    };
+
+    window.addEventListener('icc_data_sync', handleSync);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('icc_data_sync', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [recount, table]);
 
   return { count, loading };
 }

@@ -34,8 +34,11 @@ function extractYoutubeId(url) {
 
 function extractGoogleDriveId(url) {
   if (!url) return null;
-  const match = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)/);
-  return match ? match[1] : null;
+  const trimmed = url.trim();
+  const match = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]{20,})/);
+  if (match) return match[1];
+  if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) return trimmed;
+  return null;
 }
 
 export default function FeaturedMontagesSection() {
@@ -203,13 +206,14 @@ export default function FeaturedMontagesSection() {
                   return (
                     <video
                       key={mediaUrl}
+                      src={mediaUrl}
                       controls
                       autoPlay
                       playsInline
-                      preload="auto"
+                      webkit-playsinline="true"
+                      preload="metadata"
                       className="w-full h-full object-contain"
                     >
-                      <source src={mediaUrl} type="video/mp4" />
                       Your browser does not support HTML5 video.
                     </video>
                   );

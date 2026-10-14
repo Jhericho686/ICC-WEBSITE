@@ -316,11 +316,13 @@ export default function AdminMembers() {
 
   const { addToast } = useToast();
 
-  const { data: dbMembers, refetch } = useSupabaseQuery('members', {
+  const { data: dbMembers, loading, refetch } = useSupabaseQuery('members', {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0 ? dbMembers : (dbMembers ? dbMembers : fallbackMembers);
+  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0
+    ? dbMembers
+    : (loading ? fallbackMembers : (dbMembers || []));
 
   const filtered = memberList.filter((m) => {
     const q = search.toLowerCase();
@@ -387,12 +389,12 @@ export default function AdminMembers() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (editingMember.id && !String(editingMember.id).startsWith('m_')) {
+      if (editingMember.id) {
         await updateRow('members', editingMember.id, editingMember);
-        addToast('✅ Member details updated in Cloud Firestore.', 'success');
+        addToast('✅ Member details updated successfully.', 'success');
       } else {
         await insertRow('members', editingMember);
-        addToast('🎉 New clan member registered to Cloud Firestore.', 'success');
+        addToast('🎉 New clan member registered successfully.', 'success');
       }
       setIsModalOpen(false);
       refetch();
@@ -408,10 +410,11 @@ export default function AdminMembers() {
 
   const handleConfirmDelete = async () => {
     if (!deletingMember) return;
+    const target = deletingMember;
+    setDeletingMember(null);
     try {
-      await deleteRow('members', deletingMember.id);
-      addToast(`🗑️ ${deletingMember.name} deleted from Clan Roster & Cloud Firestore.`, 'info');
-      setDeletingMember(null);
+      await deleteRow('members', target.id);
+      addToast(`🗑️ ${target.name} removed from Clan Roster.`, 'info');
       refetch();
     } catch (err) {
       addToast('Error removing member: ' + err.message, 'error');

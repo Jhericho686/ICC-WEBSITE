@@ -86,6 +86,26 @@ export function SiteSettingsProvider({ children }) {
 
   useEffect(() => {
     fetchSettings();
+
+    const handleSync = (e) => {
+      if (!e.detail?.collection || e.detail.collection === 'site_settings') {
+        fetchSettings();
+      }
+    };
+
+    const handleStorage = (e) => {
+      if (e.key === 'icc_last_sync' || e.key === 'icc_store_site_settings') {
+        fetchSettings();
+      }
+    };
+
+    window.addEventListener('icc_data_sync', handleSync);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('icc_data_sync', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [fetchSettings]);
 
   return (

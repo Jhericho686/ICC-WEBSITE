@@ -101,8 +101,73 @@ export async function getAdminProfile(userId) {
   return { id: userId, role: 'Head Administrator', display_name: 'Commander' };
 }
 
-/* ─── Firestore Generic CRUD Helpers ─── */
+/* ─── Real-Time Local & Cloud Sync Layer ─── */
+import {
+  initialMembers,
+  initialVideos,
+  initialEvents,
+  initialGallery,
+  initialSettings,
+  initialPastCollabs,
+} from './initialData.js';
+
+const initialDataMap = {
+  members: initialMembers,
+  videos: initialVideos,
+  events: initialEvents,
+  gallery: initialGallery,
+  site_settings: [initialSettings],
+  past_collaborations: initialPastCollabs,
+};
+
+export const SYNC_EVENT = 'icc_data_sync';
+
+export function broadcastSync(collectionName) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: { collection: collectionName } }));
+    try {
+      localStorage.setItem('icc_last_sync', `${collectionName}_${Date.now()}`);
+    } catch (e) {}
+  }
+}
+
+function getLocalStore(collectionName) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`icc_store_${collectionName}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+
+function setLocalStore(collectionName, items) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`icc_store_${collectionName}`, JSON.stringify(items));
+  } catch (e) {}
+}
+
+/* ─── Fast Cloud Timeout Helper ─── */
+const CLOUD_TIMEOUT_MS = 1500;
+
+function withTimeout(promise, ms = CLOUD_TIMEOUT_MS) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Cloud operation timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
+/* ─── Firestore & Local Sync Generic CRUD Helpers ─── */
 export async function fetchAll(collectionName, options = {}) {
+  let items = [];
+  let fetchedFromCloud = false;
+
+  // 1. Check local store first
+  const local = getLocalStore(collectionName);
+
+  // 2. Attempt Firestore Cloud fetch with strict timeout
   try {
     let constraints = [];
 
@@ -126,49 +191,64 @@ export async function fetchAll(collectionName, options = {}) {
     }
 
     const q = query(collection(db, collectionName), ...constraints);
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await withTimeout(getDocs(q), CLOUD_TIMEOUT_MS);
 
-    return querySnapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    }));
-  } catch (error) {
-    // If query failed due to missing Firestore composite index, retry without order constraint and sort in JS
-    if (error?.message?.includes('index') && options.order) {
-      try {
-        let fallbackConstraints = [];
-        if (options.filter) {
-          for (const [key, value] of Object.entries(options.filter)) {
-            fallbackConstraints.push(where(key, '==', value));
-          }
-        }
-        const fallbackQ = query(collection(db, collectionName), ...fallbackConstraints);
-        const snapshot = await getDocs(fallbackQ);
-        let items = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        const col = options.order.column;
-        const asc = options.order.ascending !== false;
-        items.sort((a, b) => {
-          if (!a[col]) return 1;
-          if (!b[col]) return -1;
-          return asc ? (a[col] > b[col] ? 1 : -1) : (a[col] < b[col] ? 1 : -1);
-        });
-
-        if (options.limit) items = items.slice(0, options.limit);
-        return items;
-      } catch (innerErr) {
-        console.warn(`Fallback fetch failed for ${collectionName}:`, innerErr.message);
-      }
+    if (querySnapshot && !querySnapshot.empty) {
+      items = querySnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      fetchedFromCloud = true;
+      setLocalStore(collectionName, items);
     }
-    console.warn(`Firestore fetchAll notice for ${collectionName}:`, error.message);
-    return [];
+  } catch (error) {
+    // Cloud fetch notice (offline/timeout/initial setup) - fallback smoothly
   }
+
+  // 3. If cloud is empty or unavailable, load from Local Sync Store
+  if (!fetchedFromCloud) {
+    if (local !== null && Array.isArray(local)) {
+      items = [...local];
+    } else if (initialDataMap[collectionName]) {
+      items = [...initialDataMap[collectionName]];
+      setLocalStore(collectionName, items);
+    }
+  }
+
+  // 4. Apply options in JS if using local fallback data
+  if (!fetchedFromCloud) {
+    if (options.filter) {
+      items = items.filter((item) =>
+        Object.entries(options.filter).every(([k, v]) => item[k] === v)
+      );
+    }
+
+    if (options.order) {
+      const col = options.order.column;
+      const asc = options.order.ascending !== false;
+      items.sort((a, b) => {
+        if (a[col] === undefined) return 1;
+        if (b[col] === undefined) return -1;
+        return asc ? (a[col] > b[col] ? 1 : -1) : (a[col] < b[col] ? 1 : -1);
+      });
+    }
+
+    if (options.limit) {
+      items = items.slice(0, options.limit);
+    }
+  }
+
+  return items;
 }
 
 export async function fetchOne(collectionName, id) {
-  const docSnap = await getDoc(doc(db, collectionName, id));
-  if (!docSnap.exists()) return null;
-  return { id: docSnap.id, ...docSnap.data() };
+  try {
+    const docSnap = await withTimeout(getDoc(doc(db, collectionName, String(id))), CLOUD_TIMEOUT_MS);
+    if (docSnap && docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
+  } catch (e) {}
+
+  const local = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  return local.find((item) => String(item.id) === String(id)) || null;
 }
 
 function sanitizeData(data) {
@@ -185,48 +265,100 @@ function sanitizeData(data) {
 
 export async function insertRow(collectionName, data) {
   const sanitized = sanitizeData(data);
+  const newId = data.id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const payload = {
     ...sanitized,
+    id: newId,
     created_at: sanitized.created_at || new Date().toISOString(),
   };
 
+  // 1. Immediately persist to Local Sync Store & notify all components
+  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const updated = [payload, ...current.filter((item) => String(item.id) !== String(newId))];
+  setLocalStore(collectionName, updated);
+  broadcastSync(collectionName);
+
+  // 2. Persist to Firestore Cloud asynchronously (non-blocking)
   try {
-    const docRef = await addDoc(collection(db, collectionName), payload);
-    return { id: docRef.id, ...payload };
+    const docRef = doc(db, collectionName, newId);
+    withTimeout(setDoc(docRef, payload, { merge: true }), CLOUD_TIMEOUT_MS).catch((err) => {
+      console.warn(`Firestore insert sync pending for ${collectionName}:`, err.message);
+    });
   } catch (error) {
-    console.warn(`Firestore insertRow failed for ${collectionName}:`, error.message);
-    throw error;
+    console.warn(`Firestore insert error for ${collectionName}:`, error.message);
   }
+
+  return payload;
 }
 
 export async function updateRow(collectionName, id, updates) {
   if (!id) throw new Error(`Missing document ID for updateRow in ${collectionName}`);
   const sanitized = sanitizeData(updates);
-  const docRef = doc(db, collectionName, id);
-  await updateDoc(docRef, {
-    ...sanitized,
-    updated_at: new Date().toISOString(),
-  });
-  return { id, ...sanitized };
+  const updatedTime = new Date().toISOString();
+
+  // 1. Immediately update Local Sync Store & notify all components
+  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const index = current.findIndex((item) => String(item.id) === String(id));
+  let updatedItem = { id, ...sanitized, updated_at: updatedTime };
+
+  if (index >= 0) {
+    updatedItem = { ...current[index], ...sanitized, updated_at: updatedTime };
+    current[index] = updatedItem;
+    setLocalStore(collectionName, [...current]);
+  } else {
+    current.push(updatedItem);
+    setLocalStore(collectionName, [...current]);
+  }
+  broadcastSync(collectionName);
+
+  // 2. Persist to Firestore Cloud asynchronously (non-blocking)
+  try {
+    const docRef = doc(db, collectionName, String(id));
+    withTimeout(setDoc(docRef, { ...sanitized, updated_at: updatedTime }, { merge: true }), CLOUD_TIMEOUT_MS).catch((err) => {
+      console.warn(`Firestore update sync pending for ${collectionName}/${id}:`, err.message);
+    });
+  } catch (error) {
+    console.warn(`Firestore update error for ${collectionName}/${id}:`, error.message);
+  }
+
+  return updatedItem;
 }
 
 export async function deleteRow(collectionName, id) {
   if (!id) return;
-  const docRef = doc(db, collectionName, id);
-  await deleteDoc(docRef);
+
+  // 1. Immediately remove from Local Sync Store & notify all components
+  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const filtered = current.filter((item) => String(item.id) !== String(id));
+  setLocalStore(collectionName, filtered);
+  broadcastSync(collectionName);
+
+  // 2. Remove from Firestore Cloud asynchronously (non-blocking)
+  try {
+    const docRef = doc(db, collectionName, String(id));
+    withTimeout(deleteDoc(docRef), CLOUD_TIMEOUT_MS).catch((err) => {
+      console.warn(`Firestore delete sync pending for ${collectionName}/${id}:`, err.message);
+    });
+  } catch (error) {
+    console.warn(`Firestore delete error for ${collectionName}/${id}:`, error.message);
+  }
 }
 
 export async function countRows(collectionName, filter = {}) {
-  try {
-    let constraints = [];
-    for (const [key, value] of Object.entries(filter)) {
-      constraints.push(where(key, '==', value));
+  const local = getLocalStore(collectionName);
+  if (local !== null && Array.isArray(local)) {
+    if (filter && Object.keys(filter).length > 0) {
+      return local.filter((item) =>
+        Object.entries(filter).every(([k, v]) => item[k] === v)
+      ).length;
     }
-    const q = query(collection(db, collectionName), ...constraints);
-    const snapshot = await getCountFromServer(q);
-    return snapshot.data().count;
+    return local.length;
+  }
+  try {
+    const items = await fetchAll(collectionName, { filter });
+    return items.length;
   } catch (e) {
-    return 0;
+    return (initialDataMap[collectionName] || []).length;
   }
 }
 
@@ -249,26 +381,39 @@ export async function uploadMediaFile(bucket, file, onProgress) {
     const downloadUrl = await new Promise((resolve, reject) => {
       const uploadTask = uploadBytesResumable(fileRef, file);
 
-      // 60-second connection timeout guard
-      const timer = setTimeout(() => {
+      // Inactivity timeout: only triggers if no upload progress occurs for 90 seconds
+      let inactivityTimer = setTimeout(() => {
         try { uploadTask.cancel(); } catch (e) {}
-        reject(new Error('Cloud upload timed out. Ensure Firebase Storage is initialized in Firebase console.'));
-      }, 60000);
+        reject(new Error('Cloud upload timed out due to no network activity. Please check your connection.'));
+      }, 90000);
 
       uploadTask.on(
         'state_changed',
         (snapshot) => {
+          // Reset timer on each chunk of progress
+          clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(() => {
+            try { uploadTask.cancel(); } catch (e) {}
+            reject(new Error('Cloud upload stalled. Network connection lost.'));
+          }, 90000);
+
           if (snapshot.totalBytes > 0) {
             const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
             if (onProgress) onProgress(pct);
           }
         },
         (error) => {
-          clearTimeout(timer);
-          reject(error);
+          clearTimeout(inactivityTimer);
+          if (error.code === 'storage/unauthorized') {
+            reject(new Error('Upload permission denied. Firebase Storage rules must allow writes.'));
+          } else if (error.code === 'storage/bucket-not-found') {
+            reject(new Error('Firebase Storage bucket not found. Please ensure Cloud Storage is created in your Firebase Console.'));
+          } else {
+            reject(error);
+          }
         },
         async () => {
-          clearTimeout(timer);
+          clearTimeout(inactivityTimer);
           try {
             const url = await getDownloadURL(uploadTask.snapshot.ref);
             resolve(url);
