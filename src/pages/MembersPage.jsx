@@ -12,11 +12,13 @@ export default function MembersPage() {
   const [selectedRole, setSelectedRole] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: dbMembers } = useSupabaseQuery('members', {
+  const { data: dbMembers, loading } = useSupabaseQuery('members', {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = dbMembers && dbMembers.length > 0 ? dbMembers : fallbackMembers;
+  const memberList = (dbMembers && dbMembers.length > 0)
+    ? dbMembers.filter((m) => m && m.name && m.name.trim())
+    : (loading ? fallbackMembers : []);
 
   const filteredMembers = useMemo(() => {
     return memberList.filter((m) => {

@@ -26,20 +26,7 @@ const fallbackVideos = [
   },
 ];
 
-function extractYoutubeId(url) {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
-  return match ? match[1] : null;
-}
-
-function extractGoogleDriveId(url) {
-  if (!url) return null;
-  const trimmed = url.trim();
-  const match = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]{20,})/);
-  if (match) return match[1];
-  if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) return trimmed;
-  return null;
-}
+import { parseVideoSource, extractYoutubeId, extractGoogleDriveId, extractStreamableId } from '../../lib/videoUtils';
 
 export default function AdminMontages() {
   const [search, setSearch] = useState('');
@@ -413,22 +400,76 @@ export default function AdminMontages() {
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-extrabold text-[11px] border border-emerald-500/40">
-                        GOOGLE DRIVE
+                {/* Direct Video File Upload Button */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-dashed border-amber-500/40 hover:border-amber-400 transition-colors space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Video className="w-4 h-4 text-amber-400" />
+                      Option 1: Upload Video Directly (From Phone or PC)
+                    </span>
+                    {uploading && (
+                      <span className="text-xs font-mono font-bold text-amber-400 animate-pulse">
+                        Uploading: {uploadProgress}%
                       </span>
-                      Video Share Link *
+                    )}
+                  </div>
+
+                  <label className="flex items-center justify-center gap-2.5 p-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold cursor-pointer transition-all">
+                    <Upload className="w-4 h-4" />
+                    <span>{uploading ? `Uploading Video (${uploadProgress}%)...` : '📁 Select Video File from Mobile / PC'}</span>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      disabled={uploading}
+                      className="hidden"
+                      onChange={handleVideoFileUpload}
+                    />
+                  </label>
+
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {uploadError && (
+                    <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 space-y-1">
+                      <p className="font-bold flex items-center gap-1">⚠️ {uploadError}</p>
+                      <p className="text-[11px] text-white/80">
+                        To activate direct video file storage: Go to{' '}
+                        <a
+                          href="https://console.firebase.google.com/project/iccwebsite-e3a90/storage"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-amber-300 underline font-bold"
+                        >
+                          Firebase Console &rarr; Storage
+                        </a>{' '}
+                        and click <strong>"Get Started"</strong> (100% Free). Or use Option 2 below!
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 my-2">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                    Option 2: Or Paste a Free Cloud Video Link
+                  </span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
+
+                <div>
+                  <div className="mb-2">
+                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                      <span className="px-2 py-0.5 rounded-lg bg-[var(--color-accent)]/20 text-[var(--color-accent)] font-extrabold text-[11px] border border-[var(--color-accent)]/40">
+                        FREE CLOUD VIDEO
+                      </span>
+                      Video Source Link *
                     </label>
-                    <a
-                      href="https://drive.google.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-[11px] no-underline border border-emerald-500/30 transition-colors"
-                    >
-                      Open Google Drive <ExternalLink className="w-3 h-3" />
-                    </a>
                   </div>
 
                   <div className="space-y-3">
@@ -437,102 +478,84 @@ export default function AdminMontages() {
                       required
                       value={editingVideo.youtube_url}
                       onChange={(e) => handleVideoUrlChange(e.target.value)}
-                      placeholder="Paste Google Drive Share Link (e.g. https://drive.google.com/file/d/...)"
-                      className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-emerald-500/40 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-400 font-mono placeholder:text-white/30"
+                      placeholder="Paste YouTube (Unlisted), Streamable, Catbox, or Google Drive link..."
+                      className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/20 text-xs sm:text-sm text-white focus:outline-none focus:border-[var(--color-accent)] font-mono placeholder:text-white/30"
                     />
 
-                    {/* Mobile & PC step-by-step instructions */}
-                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-white/80 space-y-2">
-                      <p className="font-bold text-emerald-300 flex items-center gap-1.5">
-                        <span>📱</span> Uploading from Phone / Mobile to Website:
+                    {/* Provider Recommendation Guide */}
+                    <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white/80 space-y-2">
+                      <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                        <span>💡</span> Recommended Free Video Options (No storage limits):
                       </p>
-                      <ol className="list-decimal list-inside space-y-1 text-[11px] text-white/70 pl-1 leading-relaxed">
-                        <li>Upload your video directly in the <strong>Google Drive app</strong> on your phone.</li>
-                        <li>Tap the <strong>3 dots (⋮)</strong> on the video &rarr; tap <strong>Share</strong>.</li>
-                        <li>Under <em>General Access</em>, change from "Restricted" to <strong>"Anyone with the link"</strong>.</li>
-                        <li>Tap <strong>Copy Link</strong> and paste it directly into the box above!</li>
-                      </ol>
-                      <p className="text-[10px] text-emerald-400/80 italic pt-1 border-t border-emerald-500/20">
-                        ⚡ Fast streaming · Full HD/4K quality · Unlimited file size · Zero storage fees
-                      </p>
+                      <ul className="space-y-1.5 text-[11px] text-white/70 pl-1 leading-relaxed">
+                        <li>
+                          <strong className="text-red-400">1. YouTube (Unlisted) [BEST]:</strong> Upload to YouTube & set visibility to <em>"Unlisted"</em>. Plays in crystal-clear 1080p/4K 60fps with zero buffering and auto-fetches video thumbnails.
+                        </li>
+                        <li>
+                          <strong className="text-blue-400">2. Streamable.com:</strong> Upload free on Streamable.com & paste the link. Super clean, minimal modern player with zero ads.
+                        </li>
+                        <li>
+                          <strong className="text-purple-400">3. Catbox.moe:</strong> Direct video file hosting (up to 200MB per clip). Gives a direct <code className="text-purple-300">.mp4</code> link that plays seamlessly in native HTML5 player.
+                        </li>
+                        <li>
+                          <strong className="text-emerald-400">4. Google Drive:</strong> Set share access to <em>"Anyone with the link can view"</em>.
+                        </li>
+                      </ul>
                     </div>
 
                     {/* Live interactive video preview */}
                     {(() => {
-                      const driveId = extractGoogleDriveId(editingVideo.youtube_url);
-                      const ytId = extractYoutubeId(editingVideo.youtube_url);
+                      if (!editingVideo.youtube_url?.trim()) return null;
 
-                      if (driveId) {
+                      if (editingVideo.youtube_url.includes('/folders/')) {
                         return (
-                          <div className="rounded-2xl overflow-hidden border border-emerald-500/50 bg-black/90 shadow-xl">
-                            <div className="px-3 py-2 bg-emerald-500/15 border-b border-emerald-500/30 flex items-center justify-between text-xs font-bold text-emerald-300">
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                Google Drive Video Connected
-                              </span>
-                              <span className="text-[10px] font-mono text-white/50">ID: {driveId.slice(0, 10)}...</span>
-                            </div>
-                            <div className="relative aspect-video w-full bg-black">
+                          <div className="p-4 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 text-xs text-amber-200 space-y-2">
+                            <p className="font-extrabold text-amber-300 text-sm flex items-center gap-2">
+                              <span>⚠️</span> You pasted a Google Drive FOLDER link!
+                            </p>
+                            <p className="text-white/90 leading-relaxed">
+                              A folder contains multiple files and cannot play directly as a video. Right-click the specific video file inside Drive, click Share &rarr; Copy Link!
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      const parsed = parseVideoSource(editingVideo.youtube_url);
+
+                      return (
+                        <div className="rounded-2xl overflow-hidden border border-white/20 bg-black/90 shadow-xl">
+                          <div className="px-3 py-2 bg-white/10 border-b border-white/10 flex items-center justify-between text-xs font-bold text-white">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                              {parsed.label || 'Video Source Connected'}
+                            </span>
+                            <span className="text-[10px] font-mono text-white/50 truncate max-w-[200px]">
+                              {editingVideo.youtube_url}
+                            </span>
+                          </div>
+                          <div className="relative aspect-video w-full bg-black">
+                            {parsed.type === 'youtube' || parsed.type === 'streamable' || parsed.type === 'googledrive' ? (
                               <iframe
-                                src={`https://drive.google.com/file/d/${driveId}/preview`}
-                                title="Google Drive Preview"
-                                allow="autoplay; fullscreen"
+                                src={parsed.embedUrl}
+                                title="Video Preview"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                                 allowFullScreen
                                 className="w-full h-full border-0"
                               />
-                            </div>
+                            ) : (
+                              <video
+                                key={parsed.url}
+                                src={parsed.url}
+                                controls
+                                playsInline
+                                className="w-full h-full object-contain"
+                              >
+                                Your browser does not support HTML5 video.
+                              </video>
+                            )}
                           </div>
-                        );
-                      }
-
-                      if (ytId) {
-                        return (
-                          <div className="rounded-2xl overflow-hidden border border-red-500/50 bg-black/90 shadow-xl">
-                            <div className="px-3 py-2 bg-red-500/15 border-b border-red-500/30 text-xs font-bold text-red-300">
-                              YouTube Video Connected
-                            </div>
-                            <div className="relative aspect-video w-full bg-black">
-                              <iframe
-                                src={`https://www.youtube.com/embed/${ytId}`}
-                                title="YouTube Preview"
-                                allowFullScreen
-                                className="w-full h-full border-0"
-                              />
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (editingVideo.youtube_url?.trim()) {
-                        const isFolder = editingVideo.youtube_url.includes('/folders/');
-                        if (isFolder) {
-                          return (
-                            <div className="p-4 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 text-xs text-amber-200 space-y-2">
-                              <p className="font-extrabold text-amber-300 text-sm flex items-center gap-2">
-                                <span>⚠️</span> You pasted a Google Drive FOLDER link!
-                              </p>
-                              <p className="text-white/90 leading-relaxed">
-                                A folder contains multiple files and cannot play directly as a single video.
-                              </p>
-                              <div className="p-3 rounded-xl bg-black/40 border border-amber-500/30 text-white/80 space-y-1">
-                                <p className="font-bold text-amber-300">How to get the exact video link:</p>
-                                <p>1. Open your folder in Google Drive.</p>
-                                <p>2. Tap the <strong>3 dots (⋮)</strong> or right-click directly on the <strong>video file</strong> itself.</p>
-                                <p>3. Click <strong>Share</strong> &rarr; make sure General Access is <strong>"Anyone with the link"</strong>.</p>
-                                <p>4. Click <strong>Copy link</strong> (it will say <code className="text-emerald-400 font-mono">https://drive.google.com/file/d/...</code>) and paste it here!</p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs text-amber-300">
-                            ⚠️ Please paste a valid Google Drive video link (e.g. <code className="font-mono bg-black/40 px-1 py-0.5 rounded text-white">https://drive.google.com/file/d/...</code>)
-                          </div>
-                        );
-                      }
-
-                      return null;
+                        </div>
+                      );
                     })()}
                   </div>
                 </div>

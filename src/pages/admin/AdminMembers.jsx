@@ -321,8 +321,8 @@ export default function AdminMembers() {
   });
 
   const memberList = Array.isArray(dbMembers) && dbMembers.length > 0
-    ? dbMembers
-    : (loading ? fallbackMembers : (dbMembers || []));
+    ? dbMembers.filter((m) => m && m.name && m.name.trim())
+    : (loading ? fallbackMembers : []);
 
   const filtered = memberList.filter((m) => {
     const q = search.toLowerCase();
@@ -388,6 +388,10 @@ export default function AdminMembers() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!editingMember.name || !editingMember.name.trim()) {
+      addToast('Please enter a driver / clan member name.', 'warning');
+      return;
+    }
     try {
       if (editingMember.id) {
         await updateRow('members', editingMember.id, editingMember);
@@ -414,7 +418,7 @@ export default function AdminMembers() {
     setDeletingMember(null);
     try {
       await deleteRow('members', target.id);
-      addToast(`🗑️ ${target.name} removed from Clan Roster.`, 'info');
+      addToast(`🗑️ ${target.name || 'Member'} removed from Clan Roster.`, 'info');
       refetch();
     } catch (err) {
       addToast('Error removing member: ' + err.message, 'error');

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Image as ImageIcon, Settings, Save, Sparkles, Palette, Share2, Globe, Shield } from 'lucide-react';
+import { Camera, Image as ImageIcon, Settings, Save, Sparkles, Palette, Share2, Globe, Shield, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useSiteSettings, useToast } from '../../lib/contexts';
-import { updateRow, insertRow, fetchAll, uploadMediaFile } from '../../lib/supabase';
+import { updateRow, insertRow, fetchAll, uploadMediaFile, getAdminPassword, setAdminPassword } from '../../lib/supabase';
 
 const colorPresets = [
   { name: 'ICC Flame (Default)', color: '#ff6b00' },
@@ -17,6 +17,13 @@ export default function AdminSettings() {
   const { settings, refetch } = useSiteSettings();
   const { addToast } = useToast();
   const [saving, setSaving] = useState(false);
+
+  // Admin Password Management State
+  const [currentAdminPass, setCurrentAdminPass] = useState(() => getAdminPassword());
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPass, setChangingPass] = useState(false);
 
   const [form, setForm] = useState({
     clan_name: settings.clan_name || 'IDLE COUNTRY CLUB',
@@ -128,6 +135,30 @@ export default function AdminSettings() {
       addToast('Settings saved in session.', 'info');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.trim().length < 6) {
+      addToast('Password must be at least 6 characters long.', 'error');
+      return;
+    }
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      addToast('New passwords do not match. Please verify.', 'error');
+      return;
+    }
+    setChangingPass(true);
+    try {
+      const updated = await setAdminPassword(newPassword.trim());
+      setCurrentAdminPass(updated);
+      setNewPassword('');
+      setConfirmPassword('');
+      addToast('Admin password updated successfully! Keep it secure.', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update password.', 'error');
+    } finally {
+      setChangingPass(false);
     }
   };
 
@@ -401,6 +432,91 @@ export default function AdminSettings() {
           </button>
         </div>
       </form>
+
+      {/* Admin Security & Access Key Card */}
+      <div
+        className="p-8 sm:p-10 rounded-3xl space-y-6 shadow-2xl"
+        style={{
+          background: 'rgba(16, 12, 8, 0.85)',
+          border: '1.5px solid rgba(217, 119, 6, 0.3)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 25px rgba(217, 119, 6, 0.1)',
+        }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black font-heading text-white flex items-center gap-3">
+              <Shield className="w-6 h-6 text-amber-500" /> Admin Security & Access Credentials
+            </h2>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+              Manage your commander access key and master administrative portal password.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 border border-amber-500/30">
+            <KeyRound className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-amber-200/80 font-mono">
+              Active Key: <strong className="text-amber-400 font-bold">{showPassword ? currentAdminPass : '••••••••••••'}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="text-white/40 hover:text-amber-400 p-1 transition-colors ml-1"
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdatePassword} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/80 mb-2">
+                New Master Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min. 6 chars)"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-black/60 border border-white/15 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/80 mb-2">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-black/60 border border-white/15 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+            <span className="text-xs text-white/40">
+              Default password: <code className="text-amber-400/80 font-mono bg-black/40 px-2 py-0.5 rounded">iccadmin123!</code>
+            </span>
+
+            <button
+              type="submit"
+              disabled={changingPass || !newPassword || !confirmPassword}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-900/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Lock className="w-4 h-4" />
+              {changingPass ? 'Updating Key...' : 'Update Admin Password'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

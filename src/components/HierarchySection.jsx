@@ -75,7 +75,9 @@ export default function HierarchySection({ preview = false }) {
     order: { column: 'hierarchy_order', ascending: true },
   });
 
-  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0 ? dbMembers : fallbackMembers;
+  const memberList = Array.isArray(dbMembers) && dbMembers.length > 0
+    ? dbMembers.filter((m) => m && m.name && m.name.trim())
+    : (loading ? fallbackMembers : []);
 
   // Group by role
   const grouped = {};

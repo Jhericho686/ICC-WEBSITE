@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -35,8 +35,14 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { settings } = useSiteSettings();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/admin/login', { replace: true });
+    }
+  }, [user, loading, navigate]);
 
   const handleLogout = async () => {
     try {

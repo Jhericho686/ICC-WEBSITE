@@ -12,9 +12,6 @@ const roleDefinitions = [
     borderColor: 'border-amber-500/40',
     icon: Crown,
     desc: 'Ultimate governance, strategic leadership, brand vision, and community oversight.',
-    members: [
-      { name: 'MELLY', ign: 'Owner- ICC MELLY', real_name: 'Mark Joseph Tandang', car: 'Founder' }
-    ]
   },
   {
     role: 'Co-Owner',
@@ -23,11 +20,6 @@ const roleDefinitions = [
     borderColor: 'border-orange-500/40',
     icon: Crown,
     desc: 'Co-leads operations, partnership management, clan strategy, and community decisions.',
-    members: [
-      { name: 'PATPAT', ign: '[Co-Owner] ICC-PATPAT', real_name: 'Patrick Carreon', car: 'ID: 2912492' },
-      { name: 'BLUEWORKS', ign: '[CO-OWNER]ICC - BLUEWORKS', real_name: 'Christian Torrecampo Tario', car: 'Co-Owner' },
-      { name: 'BERT23', ign: "[ C'o Owner ] BERT23", real_name: 'Herbert Malandac', car: 'Co-Owner' }
-    ]
   },
   {
     role: 'President',
@@ -36,10 +28,6 @@ const roleDefinitions = [
     borderColor: 'border-red-500/40',
     icon: Shield,
     desc: 'Supervises administrative operations, tournament hosting, and member discipline.',
-    members: [
-      { name: 'AJ ADU', ign: '[ President]ICC AJ ADU', real_name: 'Jayson Ramos', car: 'President' },
-      { name: 'RAP', ign: 'ICC [PRESIDENT] (Rap)', real_name: 'Ralph Mariño', car: 'ID: QN224264' }
-    ]
   },
   {
     role: 'Vice President',
@@ -48,10 +36,6 @@ const roleDefinitions = [
     borderColor: 'border-purple-500/40',
     icon: Shield,
     desc: 'Assists presidents in daily management, event organization, and community welfare.',
-    members: [
-      { name: 'JAS / CLAIRE', ign: 'VICE- PRESIDENT ICC CLAIRE', real_name: 'Jasmine / JC Marasigan', car: 'ID: YX606679' },
-      { name: 'BOSS TIN', ign: 'V P -BOSS TIN', real_name: 'Rolly Nacino Garcia', car: 'ID: TU606062' }
-    ]
   },
   {
     role: 'Admin',
@@ -60,12 +44,6 @@ const roleDefinitions = [
     borderColor: 'border-blue-500/40',
     icon: Star,
     desc: 'Reviews join applications, enforces rules across official servers, coordinates meets.',
-    members: [
-      { name: 'HIJUME', ign: 'ICC ( ADMIN )(Hijume)', real_name: 'Prince Casaway', car: 'ID: 09252008' },
-      { name: 'SIR DOM', ign: 'ICC - I SIR DOM I - ADMIN', real_name: 'Dominic Denuevo II', car: 'ID: BM120909' },
-      { name: 'ROXAS', ign: '🖤𝕮𝕴𝕸𝕻𝕮.𝕻𝕳_ADMIN_ROXAS', real_name: 'Roxas Jomy', car: 'Admin' },
-      { name: 'AQUAWRKZ', ign: '🖤𝕮𝕴𝕸𝕻𝕮.𝕻𝕳_ADMIN_AQUAWRKZ', real_name: 'Justine Bryan de Guzman', car: 'Admin' }
-    ]
   },
   {
     role: 'Member',
@@ -74,38 +52,26 @@ const roleDefinitions = [
     borderColor: 'border-white/15',
     icon: Users,
     desc: 'Full verified members wearing the official ICC clan tag in Car Parking Multiplayer.',
-    members: [
-      { name: 'YELICH', ign: 'ICC - (YELICH)', real_name: 'Ken Heindrich Narzoles', car: 'ID: QK168210' },
-      { name: 'Missche', ign: 'Missche', real_name: 'Karla Mantos', car: 'Member' },
-      { name: 'XED', ign: 'ICC - XED MEMBER', real_name: 'Dexter', car: 'ID: TK668735' },
-      { name: 'AZZY', ign: 'ICC (AZZY)✿', real_name: 'Azy Siermento', car: 'ID: LY914190' },
-      { name: 'bwisetor', ign: 'bwisetor', real_name: 'Jhon Aerol Gonzaga', car: 'Member' },
-      { name: 'CHACHA', ign: '[MEMBER] CHACHA', real_name: 'Jhon Carl Bautista', car: 'Member' },
-      { name: 'Nhogzkie', ign: 'Nhogzkie Madera', real_name: 'Nhogzkie Madera', car: 'Member' }
-    ]
   },
   {
-    role: 'New Member / Recruit',
+    role: 'New Member',
     title: 'Cadet / Probationary Members',
     badgeColor: 'from-zinc-700 to-zinc-800 text-zinc-300',
     borderColor: 'border-white/10',
     icon: Sparkles,
     desc: 'Newly accepted members undergoing initial probation and trial drive evaluation.',
-    members: [
-      { name: 'MANOK', ign: 'ICC (MANOK) NEW MEMBER', real_name: 'Alfon Jedric Udalve', car: 'ID: AP634449' },
-      { name: 'maw', ign: '(maw) NEW MEMBER', real_name: 'John Mark Condes', car: 'ID: IY234858' },
-      { name: 'PRITS', ign: 'ICC (PRITS) NEW MEMBER', real_name: 'Pret Zel', car: 'ID: PRTZ3106' }
-    ]
   }
 ];
 
 export default function HierarchyPage() {
   const [selectedRole, setSelectedRole] = useState(null);
 
-  // Attempt to fetch custom hierarchy data from Supabase members if populated
-  const { data: dbMembers } = useSupabaseQuery('members', {
+  // Fetch real-time hierarchy data from database
+  const { data: dbMembers, loading } = useSupabaseQuery('members', {
     order: { column: 'hierarchy_order', ascending: true },
   });
+
+  const validMembers = (dbMembers || []).filter(m => m && m.name && m.name.trim());
 
   return (
     <div className="pt-28 pb-24 min-h-screen">
@@ -120,17 +86,15 @@ export default function HierarchyPage() {
         <div className="mt-12 space-y-6">
           {roleDefinitions.map((tier, idx) => {
             const Icon = tier.icon;
-            // Filter real members if available, or use defaults
-            const currentMembers = dbMembers && dbMembers.length > 0
-              ? dbMembers.filter(m => {
-                  const r = (m.role || '').toLowerCase().trim();
-                  const tr = tier.role.toLowerCase().trim();
-                  if (tr.includes('new') || r.includes('new')) {
-                    return tr.includes('new') && r.includes('new');
-                  }
-                  return r === tr;
-                })
-              : tier.members;
+            // Filter real verified clan members for this rank
+            const currentMembers = validMembers.filter((m) => {
+              const r = (m.role || '').toLowerCase().trim();
+              const tr = tier.role.toLowerCase().trim();
+              if (tr.includes('new') || r.includes('new')) {
+                return tr.includes('new') && r.includes('new');
+              }
+              return r === tr;
+            });
 
             return (
               <motion.div

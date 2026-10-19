@@ -26,20 +26,7 @@ const fallbackMontages = [
   },
 ];
 
-function extractYoutubeId(url) {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
-  return match ? match[1] : null;
-}
-
-function extractGoogleDriveId(url) {
-  if (!url) return null;
-  const trimmed = url.trim();
-  const match = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]{20,})/);
-  if (match) return match[1];
-  if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) return trimmed;
-  return null;
-}
+import { parseVideoSource, extractYoutubeId } from '../lib/videoUtils';
 
 export default function FeaturedMontagesSection() {
   const [ref, inView] = useInView();
@@ -183,27 +170,14 @@ export default function FeaturedMontagesSection() {
               <div className="relative aspect-video w-full bg-black flex items-center justify-center">
                 {(() => {
                   const mediaUrl = activeVideo.youtube_url || activeVideo.video_url;
-                  const ytId = extractYoutubeId(mediaUrl);
-                  const driveId = extractGoogleDriveId(mediaUrl);
+                  const parsed = parseVideoSource(mediaUrl);
 
-                  if (ytId) {
+                  if (parsed.type === 'youtube' || parsed.type === 'streamable' || parsed.type === 'googledrive') {
                     return (
                       <iframe
-                        src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
+                        src={parsed.embedUrl}
                         title={activeVideo.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full border-0"
-                      />
-                    );
-                  }
-
-                  if (driveId) {
-                    return (
-                      <iframe
-                        src={`https://drive.google.com/file/d/${driveId}/preview`}
-                        title={activeVideo.title}
-                        allow="autoplay; fullscreen"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                         allowFullScreen
                         className="w-full h-full border-0"
                       />
@@ -212,8 +186,8 @@ export default function FeaturedMontagesSection() {
 
                   return (
                     <video
-                      key={mediaUrl}
-                      src={mediaUrl}
+                      key={parsed.url || mediaUrl}
+                      src={parsed.url || mediaUrl}
                       controls
                       autoPlay
                       playsInline

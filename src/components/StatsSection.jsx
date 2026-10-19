@@ -32,7 +32,8 @@ export default function StatsSection() {
   const { data: dbVideos } = useSupabaseQuery('videos');
   const { data: dbEvents } = useSupabaseQuery('events');
 
-  const memberCount = dbMembers && dbMembers.length > 0 ? dbMembers.length : 22;
+  const validMembers = (dbMembers || []).filter((m) => m && m.name && m.name.trim());
+  const memberCount = validMembers.length > 0 ? validMembers.length : (dbMembers?.length || 0);
   const videoCount = dbVideos && dbVideos.length > 0 ? dbVideos.length : 2;
   const eventCount = dbEvents && dbEvents.length > 0 ? dbEvents.length : 5;
 

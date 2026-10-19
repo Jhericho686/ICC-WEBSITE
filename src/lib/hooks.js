@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchAll, countRows } from './supabase';
+import { fetchAll, countRows, subscribeCollection } from './supabase';
 
 /* ─── Fetch data from a Supabase/Firebase table with Real-Time Sync ─── */
 export function useSupabaseQuery(table, options = {}, deps = []) {
@@ -21,6 +21,24 @@ export function useSupabaseQuery(table, options = {}, deps = []) {
   useEffect(() => {
     refetch();
 
+    // Attach real-time cloud listener
+    let unsubscribeCloud = () => {};
+    try {
+      unsubscribeCloud = subscribeCollection(
+        table,
+        options,
+        (liveData) => {
+          setData(liveData);
+          setLoading(false);
+        },
+        (err) => {
+          console.warn(`Realtime subscription notice for ${table}:`, err.message);
+        }
+      );
+    } catch (e) {
+      console.warn(`Could not subscribe to ${table}:`, e);
+    }
+
     const handleSync = (e) => {
       if (!e.detail?.collection || e.detail.collection === table) {
         refetch();
@@ -37,10 +55,13 @@ export function useSupabaseQuery(table, options = {}, deps = []) {
     window.addEventListener('storage', handleStorage);
 
     return () => {
+      if (typeof unsubscribeCloud === 'function') {
+        unsubscribeCloud();
+      }
       window.removeEventListener('icc_data_sync', handleSync);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [refetch, table]);
+  }, [refetch, table, JSON.stringify(options)]);
 
   return { data, loading, error, refetch };
 }

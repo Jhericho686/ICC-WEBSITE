@@ -23,12 +23,7 @@ export default function AdminLogin() {
       navigate('/admin');
     } catch (err) {
       console.warn('Auth error:', err.message);
-      if (email.toLowerCase().includes('admin') || email.toLowerCase().includes('icc')) {
-        addToast('Admin session initiated.', 'info');
-        navigate('/admin');
-      } else {
-        addToast(err.message || 'Invalid admin credentials.', 'error');
-      }
+      addToast(err.message || 'Invalid admin credentials. Access denied.', 'error');
     } finally {
       setLoading(false);
     }

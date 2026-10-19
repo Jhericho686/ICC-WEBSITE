@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updatePassword,
   signOut as fbSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -15,6 +17,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
   query,
   where,
   orderBy as fbOrderBy,
@@ -56,37 +59,123 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-/* ─── Auth Helpers ─── */
+/* ─── Admin Password & Auth Helpers ─── */
+export const DEFAULT_ADMIN_PASSWORD = 'iccadmin123!';
+
+export function getAdminPassword() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const saved = localStorage.getItem('icc_admin_password');
+    if (saved) return saved;
+  }
+  return DEFAULT_ADMIN_PASSWORD;
+}
+
+export async function setAdminPassword(newPassword) {
+  if (!newPassword || newPassword.trim().length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  const cleanPass = newPassword.trim();
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem('icc_admin_password', cleanPass);
+  }
+  if (auth.currentUser) {
+    try {
+      await updatePassword(auth.currentUser, cleanPass);
+    } catch (e) {
+      console.warn('Firebase user password sync skipped:', e.message);
+    }
+  }
+  return cleanPass;
+}
+
+export function getLocalAdminSession() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem('icc_admin_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function notifyAuthChange() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('icc_admin_auth'));
+  }
+}
+
 export async function signIn(email, password) {
+  const normEmail = (email || '').toLowerCase().trim();
+  const currentAdminPass = getAdminPassword();
+
+  // 1. Try Firebase Auth first
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('icc_admin_session');
+    }
+    notifyAuthChange();
     return userCredential.user;
   } catch (error) {
-    // If offline or user not yet in Firebase Auth, check admin fallback
-    const normEmail = (email || '').toLowerCase().trim();
-    if (
+    // 2. If Firebase user not registered yet or offline, verify against admin credentials
+    const isAdminEmail =
       normEmail === 'iccadmin@gmail.com' ||
       normEmail.includes('admin') ||
-      normEmail.includes('icc')
-    ) {
-      console.info('Authenticated in admin override mode');
-      return { email: normEmail, uid: 'admin-local', displayName: 'Head Administrator' };
+      normEmail.includes('icc');
+
+    if (isAdminEmail) {
+      if (password === currentAdminPass) {
+        const adminUser = {
+          email: normEmail,
+          uid: 'admin-local',
+          displayName: 'Head Administrator',
+        };
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('icc_admin_session', JSON.stringify(adminUser));
+        }
+        notifyAuthChange();
+
+        // Attempt to create user in Firebase Auth in background so cloud rules work seamlessly
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+        } catch (_) {
+          // Ignored if user already exists or registrations closed
+        }
+
+        return adminUser;
+      } else {
+        throw new Error('Incorrect password. Access denied.');
+      }
     }
-    throw error;
+
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      throw new Error('Incorrect password. Access denied.');
+    }
+    throw new Error(error.message || 'Invalid admin credentials.');
   }
 }
 
 export async function signOut() {
-  await fbSignOut(auth);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem('icc_admin_session');
+  }
+  try {
+    await fbSignOut(auth);
+  } catch (e) {
+    console.warn('Firebase signout error:', e);
+  }
+  notifyAuthChange();
 }
 
 export async function getSession() {
-  const user = auth.currentUser;
+  const user = auth.currentUser || getLocalAdminSession();
   return user ? { user } : null;
 }
 
 export async function getUser() {
-  return auth.currentUser;
+  return auth.currentUser || getLocalAdminSession();
 }
 
 export async function getAdminProfile(userId) {
@@ -147,8 +236,8 @@ function setLocalStore(collectionName, items) {
   } catch (e) {}
 }
 
-/* ─── Fast Cloud Timeout Helper ─── */
-const CLOUD_TIMEOUT_MS = 1500;
+/* ─── Cloud Timeout Helper ─── */
+const CLOUD_TIMEOUT_MS = 8000;
 
 function withTimeout(promise, ms = CLOUD_TIMEOUT_MS) {
   return Promise.race([
@@ -159,15 +248,64 @@ function withTimeout(promise, ms = CLOUD_TIMEOUT_MS) {
   ]);
 }
 
+/* ─── Real-Time Firestore Collection Listener ─── */
+export function subscribeCollection(collectionName, options = {}, onUpdate, onError) {
+  try {
+    let constraints = [];
+
+    if (options.filter) {
+      for (const [key, value] of Object.entries(options.filter)) {
+        constraints.push(where(key, '==', value));
+      }
+    }
+
+    if (options.order) {
+      constraints.push(
+        fbOrderBy(
+          options.order.column,
+          options.order.ascending === false ? 'desc' : 'asc'
+        )
+      );
+    }
+
+    if (options.limit) {
+      constraints.push(fbLimit(options.limit));
+    }
+
+    const q = query(collection(db, collectionName), ...constraints);
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map((docSnap) => ({
+          ...docSnap.data(),
+          id: docSnap.id,
+        }));
+        setLocalStore(collectionName, items);
+        if (onUpdate) onUpdate(items);
+      },
+      (error) => {
+        console.warn(`Firestore onSnapshot error for ${collectionName}:`, error.message);
+        if (onError) onError(error);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.warn(`Could not setup onSnapshot for ${collectionName}:`, err);
+    return () => {};
+  }
+}
+
 /* ─── Firestore & Local Sync Generic CRUD Helpers ─── */
 export async function fetchAll(collectionName, options = {}) {
   let items = [];
   let fetchedFromCloud = false;
 
-  // 1. Check local store first
+  // 1. Check local store first for fast initial display
   const local = getLocalStore(collectionName);
 
-  // 2. Attempt Firestore Cloud fetch with strict timeout
+  // 2. Attempt Firestore Cloud fetch
   try {
     let constraints = [];
 
@@ -193,7 +331,7 @@ export async function fetchAll(collectionName, options = {}) {
     const q = query(collection(db, collectionName), ...constraints);
     const querySnapshot = await withTimeout(getDocs(q), CLOUD_TIMEOUT_MS);
 
-    if (querySnapshot && !querySnapshot.empty) {
+    if (querySnapshot) {
       items = querySnapshot.docs.map((docSnap) => ({
         ...docSnap.data(),
         id: docSnap.id,
@@ -202,10 +340,10 @@ export async function fetchAll(collectionName, options = {}) {
       setLocalStore(collectionName, items);
     }
   } catch (error) {
-    // Cloud fetch notice (offline/initial setup) - fallback smoothly
+    console.warn(`Cloud fetch notice for ${collectionName}:`, error.message);
   }
 
-  // 3. If cloud is empty or unavailable, load from Local Sync Store
+  // 3. If cloud operation failed (e.g. offline), load from Local Sync Store or initial data
   if (!fetchedFromCloud) {
     if (local !== null && Array.isArray(local)) {
       items = [...local];
@@ -243,7 +381,7 @@ export async function fetchAll(collectionName, options = {}) {
 
 export async function fetchOne(collectionName, id) {
   try {
-    const docSnap = await withTimeout(getDoc(doc(db, collectionName, String(id))), 3000);
+    const docSnap = await withTimeout(getDoc(doc(db, collectionName, String(id))), 5000);
     if (docSnap && docSnap.exists()) return { ...docSnap.data(), id: docSnap.id };
   } catch (e) {}
 
@@ -273,7 +411,7 @@ export async function insertRow(collectionName, data) {
   };
 
   // 1. Immediately persist to Local Sync Store & notify all components
-  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const current = getLocalStore(collectionName) || [];
   const updated = [payload, ...current.filter((item) => String(item.id) !== String(newId))];
   setLocalStore(collectionName, updated);
   broadcastSync(collectionName);
@@ -283,7 +421,8 @@ export async function insertRow(collectionName, data) {
     const docRef = doc(db, collectionName, newId);
     await setDoc(docRef, payload, { merge: true });
   } catch (error) {
-    console.warn(`Firestore insert error for ${collectionName}:`, error.message);
+    console.error(`Firestore insert error for ${collectionName}:`, error);
+    throw error;
   }
 
   return payload;
@@ -295,7 +434,7 @@ export async function updateRow(collectionName, id, updates) {
   const updatedTime = new Date().toISOString();
 
   // 1. Immediately update Local Sync Store & notify all components
-  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const current = getLocalStore(collectionName) || [];
   const index = current.findIndex((item) => String(item.id) === String(id));
   let updatedItem = { ...sanitized, id, updated_at: updatedTime };
 
@@ -314,7 +453,8 @@ export async function updateRow(collectionName, id, updates) {
     const docRef = doc(db, collectionName, String(id));
     await setDoc(docRef, { ...sanitized, updated_at: updatedTime }, { merge: true });
   } catch (error) {
-    console.warn(`Firestore update error for ${collectionName}/${id}:`, error.message);
+    console.error(`Firestore update error for ${collectionName}/${id}:`, error);
+    throw error;
   }
 
   return updatedItem;
@@ -324,24 +464,30 @@ export async function deleteRow(collectionName, id) {
   if (!id) return;
 
   // 1. Immediately remove from Local Sync Store & notify all components
-  const current = getLocalStore(collectionName) || initialDataMap[collectionName] || [];
+  const current = getLocalStore(collectionName) || [];
   const filtered = current.filter((item) => String(item.id) !== String(id));
   setLocalStore(collectionName, filtered);
   broadcastSync(collectionName);
 
   // 2. Remove directly from Google Cloud Firestore
   try {
+    // Delete by document ID directly
     const docRef = doc(db, collectionName, String(id));
     await deleteDoc(docRef);
 
-    // Also delete any document whose internal 'id' matches (handles seeded documents)
-    const q = query(collection(db, collectionName), where('id', '==', String(id)));
-    const snap = await getDocs(q);
-    for (const d of snap.docs) {
-      await deleteDoc(d.ref);
+    // Also delete any document whose internal 'id' matches (handles legacy seeded documents)
+    try {
+      const q = query(collection(db, collectionName), where('id', '==', String(id)));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await deleteDoc(d.ref);
+      }
+    } catch (innerErr) {
+      // Ignore if query where index not present
     }
   } catch (error) {
-    console.warn(`Firestore delete error for ${collectionName}/${id}:`, error.message);
+    console.error(`Firestore delete error for ${collectionName}/${id}:`, error);
+    throw error;
   }
 }
 
