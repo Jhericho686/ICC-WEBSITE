@@ -72,7 +72,7 @@ export default function AdminMontages() {
     if (!file) return;
 
     const sizeMb = Math.round(file.size / (1024 * 1024));
-    
+
     // Warn if uploading very large mobile video
     if (sizeMb > 100) {
       const confirmUpload = window.confirm(
@@ -271,87 +271,87 @@ export default function AdminMontages() {
             : rawThumb;
 
           return (
-          <div
-            key={item.id || idx}
-            className="rounded-3xl bg-[#14100b]/90 border border-white/10 overflow-hidden shadow-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group"
-          >
-            <div className="relative aspect-video w-full bg-black/60 overflow-hidden">
-              {item.youtube_url && item.youtube_url.startsWith('data:video') ? (
-                <video
-                  src={item.youtube_url}
-                  controls
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <img
-                  src={thumb}
-                  alt={item.title}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+            <div
+              key={item.id || idx}
+              className="rounded-3xl bg-[#14100b]/90 border border-white/10 overflow-hidden shadow-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group"
+            >
+              <div className="relative aspect-video w-full bg-black/60 overflow-hidden">
+                {item.youtube_url && item.youtube_url.startsWith('data:video') ? (
+                  <video
+                    src={item.youtube_url}
+                    controls
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={thumb}
+                    alt={item.title}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/gallery/icc-meet-grand-gathering.png';
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                )}
+                <span className="absolute top-3.5 left-3.5 px-3.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/30">
+                  {item.category}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleFeatured(item)}
+                  className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
+                  style={{
+                    background: item.featured
+                      ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                      : 'rgba(0, 0, 0, 0.75)',
+                    color: item.featured ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                    border: item.featured ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.2)',
                   }}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              )}
-              <span className="absolute top-3.5 left-3.5 px-3.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/30">
-                {item.category}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggleFeatured(item)}
-                className="absolute top-3.5 right-3.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
-                style={{
-                  background: item.featured
-                    ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                    : 'rgba(0, 0, 0, 0.75)',
-                  color: item.featured ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
-                  border: item.featured ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.2)',
-                }}
-                title="Click to toggle featured status on homepage"
-              >
-                {item.featured ? '★ Featured' : '☆ Not Featured'}
-              </button>
-            </div>
-
-            <div className="p-6 flex-1 flex flex-col justify-between gap-5">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold font-heading text-white line-clamp-2">
-                  {item.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-white/50 mt-1 truncate font-mono">
-                  {item.youtube_url?.slice(0, 40)}...
-                </p>
+                  title="Click to toggle featured status on homepage"
+                >
+                  {item.featured ? '★ Featured' : '☆ Not Featured'}
+                </button>
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-3">
-                <a
-                  href={item.youtube_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-amber-400 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors no-underline"
-                >
-                  Watch <ExternalLink className="w-4 h-4" />
-                </a>
+              <div className="p-6 flex-1 flex flex-col justify-between gap-5">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold font-heading text-white line-clamp-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-white/50 mt-1 truncate font-mono">
+                    {item.youtube_url?.slice(0, 40)}...
+                  </p>
+                </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(item)}
-                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Edit Video"
+                <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-3">
+                  <a
+                    href={item.youtube_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-amber-400 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors no-underline"
                   >
-                    <Edit2 className="w-4 h-4 text-amber-400" strokeWidth={2.4} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item)}
-                    className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold transition-colors cursor-pointer"
-                    title="Delete Video"
-                  >
-                    <Trash2 className="w-4 h-4" strokeWidth={2.4} />
-                  </button>
+                    Watch <ExternalLink className="w-4 h-4" />
+                  </a>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Edit Video"
+                    >
+                      <Edit2 className="w-4 h-4 text-amber-400" strokeWidth={2.4} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold transition-colors cursor-pointer"
+                      title="Delete Video"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={2.4} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           );
         })}
       </div>
@@ -654,11 +654,10 @@ export default function AdminMontages() {
                           key={preset.src}
                           type="button"
                           onClick={() => setEditingVideo({ ...editingVideo, thumbnail_url: preset.src })}
-                          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all text-left truncate flex items-center gap-1.5 cursor-pointer ${
-                            editingVideo.thumbnail_url === preset.src
+                          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all text-left truncate flex items-center gap-1.5 cursor-pointer ${editingVideo.thumbnail_url === preset.src
                               ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
                               : 'bg-white/5 border-white/10 hover:border-white/30 text-white/70'
-                          }`}
+                            }`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                           <span className="truncate">{preset.label}</span>

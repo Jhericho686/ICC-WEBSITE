@@ -302,6 +302,31 @@ export const fallbackMembers = [
   },
 ];
 
+// Returns the next hierarchy_order that places a new member right after
+// the last existing member who shares the same role.
+const getNextHierarchyOrderForRole = (role, members) => {
+  // Members with the exact same role
+  const sameRole = members.filter((m) => m.role === role);
+  if (sameRole.length > 0) {
+    return Math.max(...sameRole.map((m) => m.hierarchy_order || 0)) + 1;
+  }
+
+  // No members yet with that role — find where it fits in the hierarchy
+  // roleHierarchy is ordered lowest → highest rank
+  const roleIdx = roleHierarchy.indexOf(role);
+  if (roleIdx === -1) return members.length + 1;
+
+  // Roles that rank HIGHER (come before in the display list = lower hierarchy_order number)
+  const higherRankRoles = roleHierarchy.slice(roleIdx + 1);
+  const higherRankMembers = members.filter((m) => higherRankRoles.includes(m.role));
+  if (higherRankMembers.length > 0) {
+    return Math.max(...higherRankMembers.map((m) => m.hierarchy_order || 0)) + 1;
+  }
+
+  // No higher-ranked members — place at the top
+  return 1;
+};
+
 export default function AdminMembers() {
   const [search, setSearch] = useState('');
   const [editingMember, setEditingMember] = useState(null);
@@ -337,16 +362,17 @@ export default function AdminMembers() {
   });
 
   const openCreateModal = () => {
+    const defaultRole = 'Member';
     setEditingMember({
       name: '',
       real_name: '',
       in_game_name: '',
-      role: 'Member',
+      role: defaultRole,
       cpm_id: '',
       car: '',
       bio: '',
       avatar_url: '',
-      hierarchy_order: memberList.length + 1,
+      hierarchy_order: getNextHierarchyOrderForRole(defaultRole, memberList),
       featured: false,
     });
     setIsModalOpen(true);
@@ -647,127 +673,170 @@ export default function AdminMembers() {
                 <th className="px-8 py-5 text-right">Admin & Promotion Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map((m, idx) => {
-                const currentRoleIdx = roleHierarchy.indexOf(m.role);
-                const canPromote = currentRoleIdx >= 0 && currentRoleIdx < roleHierarchy.length - 1;
-                const canDemote = currentRoleIdx > 0;
+            <tbody>
+              {(() => {
+                // Role config: highest rank first (matches display order)
+                const roleConfig = {
+                  Owner:          { label: '👑 Owner',          color: 'text-amber-300',   bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
+                  'Co-Owner':     { label: '🌟 Co-Owner',       color: 'text-amber-200',   bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)' },
+                  President:      { label: '🏛️ President',      color: 'text-purple-300',  bg: 'rgba(168,85,247,0.10)', border: 'rgba(168,85,247,0.30)' },
+                  'Vice President': { label: '🎖️ Vice President', color: 'text-purple-200', bg: 'rgba(168,85,247,0.07)', border: 'rgba(168,85,247,0.22)' },
+                  Admin:          { label: '🛡️ Admin',           color: 'text-blue-300',   bg: 'rgba(59,130,246,0.10)',  border: 'rgba(59,130,246,0.30)' },
+                  Member:         { label: '🚗 Member',          color: 'text-emerald-300', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.22)' },
+                  'New Member':   { label: '🆕 New Member',     color: 'text-zinc-300',    bg: 'rgba(113,113,122,0.10)', border: 'rgba(113,113,122,0.25)' },
+                };
+                // Highest → lowest: reverse of roleHierarchy (Owner first)
+                const displayOrder = [...roleHierarchy].reverse();
+                const rows = [];
 
-                return (
-                  <tr key={m.id || idx} className="hover:bg-white/[0.04] transition-colors">
-                    <td className="px-8 py-6 font-mono font-black text-[var(--color-accent)] text-base sm:text-lg">
-                      #{m.hierarchy_order || idx + 1}
-                    </td>
-                    <td className="px-8 py-6 font-bold text-white">
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={m.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80'}
-                          alt={m.name}
-                          className="w-11 h-11 rounded-2xl object-cover border border-white/10"
-                        />
-                        <div>
-                          <div className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
-                            <span>{m.name}</span>
-                            {m.real_name && <span className="text-xs text-white/70 font-normal">({m.real_name})</span>}
-                          </div>
-                          <div className="text-xs text-amber-300 font-mono font-normal mt-0.5">
-                            {m.in_game_name}
-                          </div>
+                displayOrder.forEach((role) => {
+                  const group = filtered.filter((m) => m.role === role);
+                  if (group.length === 0) return;
+
+                  const cfg = roleConfig[role] || { label: role, color: 'text-white/60', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' };
+
+                  // Section header row
+                  rows.push(
+                    <tr key={`section-${role}`}>
+                      <td colSpan={6} className="px-8 pt-6 pb-2">
+                        <div
+                          className="flex items-center gap-3 px-5 py-2.5 rounded-2xl"
+                          style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}` }}
+                        >
+                          <span className={`text-sm font-extrabold uppercase tracking-widest ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${cfg.color}`}
+                            style={{ background: cfg.border + '55' }}
+                          >
+                            {group.length} {group.length === 1 ? 'member' : 'members'}
+                          </span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span
-                        className={`inline-flex px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
-                          ['Owner', 'Co-Owner'].includes(m.role)
-                            ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
-                            : ['President', 'Vice President'].includes(m.role)
-                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50'
-                            : m.role === 'Admin'
-                            ? 'bg-blue-500/25 text-blue-300 border border-blue-500/50'
-                            : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
-                        }`}
-                      >
-                        {m.role || 'Member'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-white/80 font-medium text-sm sm:text-base">
-                      <div className="font-mono text-xs text-amber-400 font-bold">{m.cpm_id || 'REGISTERED'}</div>
-                      <div className="text-xs text-white/60">{m.car || 'CPM Spec'}</div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFeatured(m)}
-                        className="cursor-pointer transition-transform hover:scale-105"
-                        title="Click to toggle featured status"
-                      >
-                        {m.featured ? (
-                          <span className="text-amber-400 font-extrabold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30">
-                            ★ Yes
-                          </span>
-                        ) : (
-                          <span className="text-white/40 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:text-white/80">
-                            No
-                          </span>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2.5">
-                        {/* Quick Promote Button */}
-                        {canPromote && (
-                          <button
-                            onClick={() => handleQuickPromote(m)}
-                            className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1 border border-amber-500/30 transition-all cursor-pointer"
-                            title={`Promote to ${roleHierarchy[currentRoleIdx + 1]}`}
+                      </td>
+                    </tr>
+                  );
+
+                  // Member rows for this group
+                  group.forEach((m, idx) => {
+                    const currentRoleIdx = roleHierarchy.indexOf(m.role);
+                    const canPromote = currentRoleIdx >= 0 && currentRoleIdx < roleHierarchy.length - 1;
+                    const canDemote = currentRoleIdx > 0;
+
+                    rows.push(
+                      <tr key={m.id || `${role}-${idx}`} className="hover:bg-white/[0.04] transition-colors border-t border-white/5">
+                        <td className="px-8 py-5 font-mono font-black text-[var(--color-accent)] text-base sm:text-lg">
+                          #{m.hierarchy_order || idx + 1}
+                        </td>
+                        <td className="px-8 py-5 font-bold text-white">
+                          <div className="flex items-center gap-4">
+                            <img
+                              src={m.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80'}
+                              alt={m.name}
+                              className="w-11 h-11 rounded-2xl object-cover border border-white/10"
+                            />
+                            <div>
+                              <div className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
+                                <span>{m.name}</span>
+                                {m.real_name && <span className="text-xs text-white/70 font-normal">({m.real_name})</span>}
+                              </div>
+                              <div className="text-xs text-amber-300 font-mono font-normal mt-0.5">
+                                {m.in_game_name}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span
+                            className={`inline-flex px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
+                              ['Owner', 'Co-Owner'].includes(m.role)
+                                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
+                                : ['President', 'Vice President'].includes(m.role)
+                                ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50'
+                                : m.role === 'Admin'
+                                ? 'bg-blue-500/25 text-blue-300 border border-blue-500/50'
+                                : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                            }`}
                           >
-                            <ArrowUp className="w-4 h-4 text-amber-400" strokeWidth={3} /> Promote
-                          </button>
-                        )}
-
-                        {/* Open Dedicated Promotion Modal */}
-                        <button
-                          onClick={() => openPromotionModal(m)}
-                          className="p-2.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 transition-colors cursor-pointer"
-                          title="Official Promotion Details"
-                        >
-                          <Crown className="w-5 h-5" />
-                        </button>
-
-                        {/* Quick Demote Button */}
-                        {canDemote && (
+                            {m.role || 'Member'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-white/80 font-medium text-sm sm:text-base">
+                          <div className="font-mono text-xs text-amber-400 font-bold">{m.cpm_id || 'REGISTERED'}</div>
+                          <div className="text-xs text-white/60">{m.car || 'CPM Spec'}</div>
+                        </td>
+                        <td className="px-8 py-5">
                           <button
-                            onClick={() => handleQuickDemote(m)}
-                            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
-                            title="Demote Rank"
+                            type="button"
+                            onClick={() => handleToggleFeatured(m)}
+                            className="cursor-pointer transition-transform hover:scale-105"
+                            title="Click to toggle featured status"
                           >
-                            <ArrowDown className="w-4 h-4" />
+                            {m.featured ? (
+                              <span className="text-amber-400 font-extrabold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30">
+                                ★ Yes
+                              </span>
+                            ) : (
+                              <span className="text-white/40 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:text-white/80">
+                                No
+                              </span>
+                            )}
                           </button>
-                        )}
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2.5">
+                            {canPromote && (
+                              <button
+                                onClick={() => handleQuickPromote(m)}
+                                className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1 border border-amber-500/30 transition-all cursor-pointer"
+                                title={`Promote to ${roleHierarchy[currentRoleIdx + 1]}`}
+                              >
+                                <ArrowUp className="w-4 h-4 text-amber-400" strokeWidth={3} /> Promote
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openPromotionModal(m)}
+                              className="p-2.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 transition-colors cursor-pointer"
+                              title="Official Promotion Details"
+                            >
+                              <Crown className="w-5 h-5" />
+                            </button>
+                            {canDemote && (
+                              <button
+                                onClick={() => handleQuickDemote(m)}
+                                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
+                                title="Demote Rank"
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </button>
+                            )}
 
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => openEditModal(m)}
-                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors cursor-pointer"
-                          title="Edit Details"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => openEditModal(m)}
+                              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors cursor-pointer"
+                              title="Edit Details"
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
 
-                        {/* Delete Button */}
-                        <button
-                          onClick={() => handleDelete(m)}
-                          className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
-                          title="Delete Member"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDelete(m)}
+                              className="p-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
+                              title="Delete Member"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                });
+
+                return rows;
+              })()}
             </tbody>
           </table>
         </div>
@@ -978,7 +1047,14 @@ export default function AdminMembers() {
                     </label>
                     <select
                       value={editingMember.role}
-                      onChange={(e) => setEditingMember({ ...editingMember, role: e.target.value })}
+                      onChange={(e) => {
+                        const newRole = e.target.value;
+                        // Only auto-recalculate order for new members (no id yet)
+                        const newOrder = !editingMember.id
+                          ? getNextHierarchyOrderForRole(newRole, memberList)
+                          : editingMember.hierarchy_order;
+                        setEditingMember({ ...editingMember, role: newRole, hierarchy_order: newOrder });
+                      }}
                       className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-[var(--color-border)] text-xs text-white focus:outline-none focus:border-[var(--color-accent)]"
                     >
                       {defaultRoles.map((r) => (
