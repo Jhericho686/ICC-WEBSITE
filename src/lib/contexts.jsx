@@ -15,7 +15,8 @@ export function AuthProvider({ children }) {
     getSession().then(session => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        getAdminProfile(session.user.id).then(setProfile).catch(() => setProfile(null));
+        const uid = session.user.id || session.user.uid;
+        getAdminProfile(uid).then(setProfile).catch(() => setProfile(null));
       }
       setLoading(false);
     });
@@ -23,7 +24,8 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        getAdminProfile(session.user.id).then(setProfile).catch(() => setProfile(null));
+        const uid = session.user.id || session.user.uid;
+        getAdminProfile(uid).then(setProfile).catch(() => setProfile(null));
       } else {
         setProfile(null);
       }

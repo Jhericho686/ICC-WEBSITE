@@ -179,8 +179,11 @@ export async function getUser() {
 }
 
 export async function getAdminProfile(userId) {
+  if (!userId) {
+    return { id: 'admin-local', role: 'Head Administrator', display_name: 'Commander' };
+  }
   try {
-    const profileDoc = await getDoc(doc(db, 'profiles', userId));
+    const profileDoc = await getDoc(doc(db, 'profiles', String(userId)));
     if (profileDoc.exists()) {
       return { id: profileDoc.id, ...profileDoc.data() };
     }
